@@ -9,7 +9,9 @@ dependencies = [
     "langchain-openai>=0.0.2",
     "click>=8.0.0",
     "pyperclip>=1.8.0",
-    "python-dotenv>=1.0.0"
+    "python-dotenv>=1.0.0",
+    "pytest>=9.0.0",
+    "pydantic>=2.12.4",
 ]
 
 [project.scripts]
