@@ -37,7 +37,6 @@ def main():
 
     try:
         commit_response: CommitMessageResponse = response["structured_response"]
-        print(f"commit resp: {commit_response} \n")
         commit_msg = commit_response.commit_message
         agent_response = commit_response.agent_response
 
