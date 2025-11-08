@@ -1,6 +1,6 @@
 [project]
 name = "commit-dude"
-version = "1.0.0"
+version = "0.1.2"
 description = "CLI that generates Conventional Commits from git diffs using LangChain + OpenAI"
 readme = "README.md"
 requires-python = ">=3.10"

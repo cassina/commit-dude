@@ -66,4 +66,115 @@ credentials. Please stub network calls when adding automated tests.
    ```
 5. Create a Git tag matching the version and push it to the repository.
 
-Thanks again for helping improve Commit Dude!
+
+
+# Recommended Release Verification Flow
+
+### 1. Refresh dependencies in your development environment
+Run:
+```bash
+make install
+````
+
+This syncs the **uv** virtual environment with the locked dependencies before building any artifacts.
+
+---
+
+### 2. Run the project’s built-in smoke test
+
+Execute:
+
+```bash
+make test-local
+```
+
+This launches:
+
+```bash
+python -m commit_dude
+```
+
+through **uv** to confirm the CLI entry point still starts successfully with your local sources.
+
+This mirrors how the package exposes a module entry point via:
+
+* `commit_dude/__main__.py`
+* The `commit_dude.cli:main` callable that backs the console script.
+
+---
+
+### 3. Produce the publishable artifacts
+
+Clean previous builds and generate new ones:
+
+```bash
+make clean
+make build
+```
+
+This produces both the **wheel** and **sdist** under `dist/` using **uv build** and **Hatchling**.
+
+---
+
+### 4. Install the wheel in a fresh environment
+
+Create a clean virtual environment:
+
+```bash
+uv run python -m venv .venv-release-test
+source .venv-release-test/bin/activate
+pip install dist/commit_dude-0.1.2-py3-none-any.whl
+```
+
+This verifies that the packaged metadata (dependencies, entry points, and included modules) is **self-contained** and doesn’t rely on your editable checkout.
+
+---
+
+### 5. Exercise the installed CLI exactly as users will
+
+Export your API key:
+
+```bash
+export OPENAI_API_KEY=your-key
+```
+
+Then run:
+
+```bash
+commit-dude --help
+```
+
+to confirm the console script was generated.
+
+Perform a lightweight sanity check by:
+
+* Piping in a fake diff:
+
+  ```bash
+  printf 'diff --git ...' | commit-dude
+  ```
+* Or running inside a repo with staged changes:
+
+  ```bash
+  python -m commit_dude
+  ```
+
+These confirm that the **Click command**, **OpenAI integration**, and **clipboard copy** pathways all work end-to-end.
+
+---
+
+### 6. Optionally validate the source distribution
+
+Repeat the installation test using the sdist:
+
+```bash
+pip install dist/commit_dude-0.1.2.tar.gz
+```
+
+This helps catch missing package data that might not appear when testing only the wheel.
+
+---
+
+Following this sequence guarantees that the **exact artifacts** you plan to upload to **PyPI** have already been installed and exercised in isolation — mirroring your users’ experience.
+
+
