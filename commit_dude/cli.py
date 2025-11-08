@@ -28,10 +28,11 @@ def main():
             check=False,
         ).stdout.strip()
 
-        diff += f"\n {status}"
+        # Ensure the diff is not empty
+        diff += f"\n {status}".strip()
 
     if not diff:
-        click.echo("❌ No changes detected. Add or modify files first.", err=True)
+        click.echo("--- ❌ No changes detected. Add or modify files first. ---", err=True)
         sys.exit(1)
 
     click.echo("🤖 Generating commit message...")
