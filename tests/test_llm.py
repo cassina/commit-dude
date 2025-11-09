@@ -303,7 +303,7 @@ def test_invoke_raises_token_limit_exceeded():
 
 
 def test_invoke_logs_start_and_completion(monkeypatch, caplog):
-    """invoke should log start and completion messages."""
+    """invoke should log start and completion messages at debug level."""
 
     expected_response = CommitMessageResponse(
         agent_response="hey",
@@ -318,7 +318,7 @@ def test_invoke_logs_start_and_completion(monkeypatch, caplog):
         structured_llm=fake_structured_llm,
     )
 
-    caplog.set_level(logging.INFO)
+    caplog.set_level(logging.DEBUG)
 
     chat_dude.invoke("diff --git a/foo b/foo")
 
@@ -551,10 +551,10 @@ def test_validate_num_tokens_exceeds_limit():
         chat_dude._validate_num_tokens("diff")
 
 
-def test_validate_num_tokens_logs_information(caplog):
-    """Validation should log informational token usage details."""
+def test_validate_num_tokens_logs_debug_information(caplog):
+    """Validation should log token usage details at debug level."""
 
-    caplog.set_level(logging.INFO, logger="commit_dude.llm")
+    caplog.set_level(logging.DEBUG, logger="commit_dude.llm")
 
     llm = FakeCommitDudeChat(token_count=40)
     response = CommitMessageResponse(agent_response="ok", commit_message="msg")
