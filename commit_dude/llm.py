@@ -79,8 +79,6 @@ class ChatCommitDude:
         self.llm = llm or self._build_model()
         self.structured_llm = structured_llm or self._build_structured_llm()
         
-        logger.info("ChatCommitDude initialized successfully")
-
     # --- Public methods ---
     def invoke(self, diff: str) -> CommitMessageResponse:
         """Generate a commit message with validation and error handling.
@@ -95,13 +93,13 @@ class ChatCommitDude:
             TokenLimitExceededError: If diff exceeds token limit.
             Exception: If commit message generation fails.
         """
-        logger.info("Starting commit message generation")
+        logger.debug("Starting commit message generation")
         logger.debug("Diff length: %d characters", len(diff))
 
         self._validate_num_tokens(diff)
         result = self._generate_commit_message(diff)
 
-        logger.info("Commit message generation completed successfully")
+        logger.debug("Commit message generation completed successfully")
         return result
 
     # --- Private methods ---
@@ -120,9 +118,9 @@ class ChatCommitDude:
         logger.debug("Validating token count for diff")
         
         num_tokens = self.llm.get_num_tokens(diff)
-        logger.info(
-            "Diff token count: %d (max allowed: %d)", 
-            num_tokens, 
+        logger.debug(
+            "Diff token count: %d (max allowed: %d)",
+            num_tokens,
             self.max_tokens
         )
         
@@ -149,14 +147,13 @@ class ChatCommitDude:
         Raises:
             Exception: If LLM invocation fails.
         """
-        logger.debug("Generating commit message from diff")
-        
+        logger.debug("Generating commit message from diff via structured LLM")
+
         messages = self._build_messages(diff)
-        logger.info("Invoking LLM to generate commit message")
-        
+
         try:
             result = self.structured_llm.invoke(messages)
-            logger.info("Successfully generated commit message")
+            logger.debug("Successfully generated commit message")
             return result
         except Exception as e:
             logger.error(
