@@ -1,0 +1,306 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Unit tests for the Commit Dude CLI."""
+
+import logging
+import subprocess
+from typing import Any, List, Sequence
+
+import pytest
+
+import click
+import pyperclip
+
+from commit_dude.cli import CommitDudeCLI, ChatCommitDude
+from commit_dude.schemas import CommitMessageResponse
+
+
+class FakeStdin:
+    """Simple stdin stub with configurable content and TTY flag."""
+
+    def __init__(self, content: str = "", *, isatty: bool = False) -> None:
+        self._content = content
+        self._isatty = isatty
+        self.read_calls = 0
+
+    def read(self) -> str:
+        self.read_calls += 1
+        return self._content
+
+    def isatty(self) -> bool:
+        return self._isatty
+
+
+class FakeLLM:
+    """LLM stub that records invoke calls and returns predefined responses."""
+
+    def __init__(self, response: CommitMessageResponse, *, should_raise: bool = False) -> None:
+        self.response = response
+        self.should_raise = should_raise
+        self.invocations: List[str] = []
+
+    def invoke(self, diff: str) -> CommitMessageResponse:
+        self.invocations.append(diff)
+        if self.should_raise:
+            raise RuntimeError("boom")
+        return self.response
+
+
+def _completed_process(output: str) -> subprocess.CompletedProcess[str]:
+    """Helper to build subprocess results with provided stdout."""
+
+    return subprocess.CompletedProcess(args=["git"], returncode=0, stdout=output, stderr="")
+
+
+# === Initialization ======================================================
+
+
+def test_init_uses_default_dependencies():
+    """CLI should fall back to default helpers when none provided."""
+
+    stdin = FakeStdin()
+    cli = CommitDudeCLI(stdin=stdin)
+
+    assert cli._run_process is CommitDudeCLI._default_run_process
+    assert cli._llm_factory is ChatCommitDude
+    assert cli._clipboard_copy is pyperclip.copy
+    assert cli._echo is click.echo
+
+
+def test_init_accepts_custom_injected_dependencies():
+    """Supplied dependencies must be preserved on the instance."""
+
+    stdin = FakeStdin()
+
+    def custom_run_process(args: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        return _completed_process("")
+
+    def custom_factory() -> str:
+        return "llm"
+
+    def custom_clipboard(value: str) -> None:
+        return None
+
+    def custom_echo(message: str, **_: Any) -> None:
+        return None
+
+    def custom_echo_err(message: str) -> None:
+        return None
+
+    def custom_isatty() -> bool:
+        return True
+
+    cli = CommitDudeCLI(
+        stdin=stdin,
+        run_process=custom_run_process,
+        llm_factory=custom_factory,  # type: ignore[arg-type]
+        clipboard_copy=custom_clipboard,
+        echo=custom_echo,
+        echo_err=custom_echo_err,
+        isatty=custom_isatty,
+    )
+
+    assert cli._run_process is custom_run_process
+    assert cli._llm_factory is custom_factory
+    assert cli._clipboard_copy is custom_clipboard
+    assert cli._echo is custom_echo
+    assert cli._echo_err is custom_echo_err
+    assert cli._isatty is custom_isatty
+
+
+def test_init_sets_echo_err_default_when_not_provided():
+    """When echo_err omitted, CLI should wrap echo with err=True."""
+
+    captured: list[tuple[str, dict[str, Any]]] = []
+
+    def fake_echo(message: str, **kwargs: Any) -> None:
+        captured.append((message, kwargs))
+
+    cli = CommitDudeCLI(stdin=FakeStdin(), echo=fake_echo)
+
+    cli._echo_err("problem")
+
+    assert captured == [("problem", {"err": True})]
+
+
+def test_init_sets_isatty_default_to_stdin_isatty():
+    """Default TTY detector should reference stdin.isatty when not provided."""
+
+    stdin = FakeStdin(isatty=True)
+
+    cli = CommitDudeCLI(stdin=stdin)
+
+    assert cli._isatty() is True
+    assert getattr(cli._isatty, "__self__", None) is stdin
+
+
+# === Public API: run() ==================================================
+
+
+def test_run_returns_1_when_no_diff_detected():
+    """Empty diffs should yield exit code 1 and display a helpful message."""
+
+    errors: list[str] = []
+
+    def fail_factory() -> None:  # pragma: no cover - sanity guard
+        raise AssertionError("LLM should not be constructed when diff missing")
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin("   \n", isatty=False),
+        llm_factory=fail_factory,  # type: ignore[arg-type]
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda message: errors.append(message),
+        isatty=lambda: False,
+    )
+
+    exit_code = cli.run()
+
+    assert exit_code == 1
+    assert errors[-1] == "--- ❌ No changes detected. Add or modify files first. ---"
+
+
+def test_run_reads_diff_from_stdin_when_not_tty():
+    """When stdin is not a TTY the diff should be sourced from stdin.read()."""
+
+    response = CommitMessageResponse(agent_response="ok", commit_message="feat: msg")
+    fake_llm = FakeLLM(response)
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin(" diff content \n", isatty=False),
+        llm_factory=lambda: fake_llm,
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+        clipboard_copy=lambda *_args, **_kwargs: None,
+        run_process=lambda _args: (_ for _ in ()).throw(AssertionError("git should not run")),
+        isatty=lambda: False,
+    )
+
+    assert cli.run() == 0
+    assert fake_llm.invocations == ["diff content"]
+
+
+def test_run_reads_diff_from_git_when_tty():
+    """TTY input should trigger git commands to assemble the diff."""
+
+    response = CommitMessageResponse(agent_response="ok", commit_message="feat: msg")
+    fake_llm = FakeLLM(response)
+
+    outputs = iter(["diff-output\n", "status-output\n"])
+
+    def fake_run_process(args: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        return _completed_process(next(outputs))
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin("", isatty=True),
+        run_process=fake_run_process,
+        llm_factory=lambda: fake_llm,
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+        clipboard_copy=lambda *_args, **_kwargs: None,
+        isatty=lambda: True,
+    )
+
+    assert cli.run() == 0
+    assert fake_llm.invocations == ["diff-output\nstatus-output"]
+
+
+def test_run_calls_invoke_and_displays_commit_message():
+    """The CLI should display generated messages and copy the commit to clipboard."""
+
+    response = CommitMessageResponse(
+        agent_response="Agent says hi", commit_message="feat: greet"
+    )
+    fake_llm = FakeLLM(response)
+    echoes: list[str] = []
+    clipboard: list[str] = []
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin("diff", isatty=False),
+        llm_factory=lambda: fake_llm,
+        echo=lambda message, **_: echoes.append(message),
+        echo_err=lambda message: pytest.fail(f"Unexpected error echo: {message}"),
+        clipboard_copy=lambda value: clipboard.append(value),
+        isatty=lambda: False,
+    )
+
+    assert cli.run() == 0
+    assert fake_llm.invocations == ["diff"]
+    assert clipboard == ["feat: greet"]
+    assert "Agent says hi" in echoes
+    assert "feat: greet" in echoes
+    assert "🤖 Generating commit message..." in echoes
+    assert "✅ Suggested commit message copied to clipboard." in "".join(echoes)
+
+
+def test_run_handles_llm_exceptions_and_returns_1():
+    """Any exception from the LLM should be surfaced and exit code 1 returned."""
+
+    errors: list[str] = []
+
+    def failing_factory() -> FakeLLM:
+        return FakeLLM(
+            CommitMessageResponse(agent_response="", commit_message=""),
+            should_raise=True,
+        )
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin("diff", isatty=False),
+        llm_factory=failing_factory,  # type: ignore[arg-type]
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda message: errors.append(message),
+        clipboard_copy=lambda *_args, **_kwargs: None,
+        isatty=lambda: False,
+    )
+
+    assert cli.run() == 1
+    assert any("Failed to generate commit message" in msg for msg in errors)
+
+
+def test_run_logs_start_and_completion_messages(caplog: pytest.LogCaptureFixture):
+    """Run should emit helpful debug logs for tracing."""
+
+    caplog.set_level(logging.DEBUG, logger="commit_dude.cli")
+
+    response = CommitMessageResponse(agent_response="ok", commit_message="feat: msg")
+    fake_llm = FakeLLM(response)
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin("diff", isatty=False),
+        llm_factory=lambda: fake_llm,
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+        clipboard_copy=lambda *_args, **_kwargs: None,
+        isatty=lambda: False,
+    )
+
+    assert cli.run() == 0
+    logged_messages = " ".join(record.message for record in caplog.records)
+    assert "Starting CLI run" in logged_messages
+    assert "Copying commit message to clipboard" in logged_messages
+
+
+def test_run_echoes_user_feedback_messages():
+    """User facing echoes should include progress and generated content."""
+
+    response = CommitMessageResponse(
+        agent_response="Agent feedback", commit_message="feat: feedback"
+    )
+    fake_llm = FakeLLM(response)
+    echoes: list[str] = []
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin("diff", isatty=False),
+        llm_factory=lambda: fake_llm,
+        echo=lambda message, **_: echoes.append(message),
+        echo_err=lambda message: pytest.fail(f"Unexpected error echo: {message}"),
+        clipboard_copy=lambda *_args, **_kwargs: None,
+        isatty=lambda: False,
+    )
+
+    assert cli.run() == 0
+    assert echoes[0] == "🤖 Generating commit message..."
+    assert "Agent feedback" in echoes
+    assert "feat: feedback" in echoes
+    assert echoes[-1].strip() == "✅ Suggested commit message copied to clipboard."
+
+
