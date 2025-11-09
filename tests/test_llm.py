@@ -3,13 +3,9 @@
 """Unit tests for ChatCommitDude class."""
 
 import logging
-import sys
-from pathlib import Path
 from typing import Any, Optional
 
 import pytest
-
-sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from commit_dude.llm import ChatCommitDude
 from commit_dude.schemas import CommitMessageResponse
@@ -455,4 +451,24 @@ def test_invoke_with_empty_diff_still_calls_methods():
 
     assert result.model_dump() == fake_response.model_dump()
     assert calls == [("validate", ""), ("generate", "")]
+
+# === Commit Generation ===
+def test_generate_commit_message_success():
+    """_generate_commit_message returns the structured response on success."""
+
+    expected = CommitMessageResponse(
+        agent_response="All good",
+        commit_message="feat: add new capability",
+    )
+    fake_structured = FakeStructuredLLM(expected)
+    chat_dude = ChatCommitDude(
+        llm=FakeCommitDudeChat(structured_response=expected),
+        structured_llm=fake_structured,
+        validate_api_key=False,
+    )
+
+    result = chat_dude._generate_commit_message("diff --git a b")
+
+    assert result is expected
+    assert len(fake_structured.invocations) == 1
 
