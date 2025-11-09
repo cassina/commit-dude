@@ -46,6 +46,14 @@ class FakeLLM:
         return self.response
 
 
+class DummyChatCommitDude(ChatCommitDude):
+    """Minimal ChatCommitDude subclass for factory testing."""
+
+    def __init__(self) -> None:  # pragma: no cover - behavior irrelevant
+        # Intentionally bypass parent initialization to avoid network setup.
+        pass
+
+
 def _completed_process(output: str) -> subprocess.CompletedProcess[str]:
     """Helper to build subprocess results with provided stdout."""
 
@@ -303,4 +311,193 @@ def test_run_echoes_user_feedback_messages():
     assert "feat: feedback" in echoes
     assert echoes[-1].strip() == "✅ Suggested commit message copied to clipboard."
 
+
+# === Internal Helpers: _read_diff() =======================================
+
+
+def test_read_diff_reads_from_stdin_if_not_tty():
+    """_read_diff should use stdin when not attached to a TTY."""
+
+    stdin = FakeStdin(" diff contents \n", isatty=False)
+    cli = CommitDudeCLI(
+        stdin=stdin,
+        isatty=lambda: False,
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+    )
+
+    diff = cli._read_diff()
+
+    assert diff == "diff contents"
+    assert stdin.read_calls == 1
+
+
+def test_read_diff_calls_git_commands_if_tty():
+    """_read_diff should invoke git helpers when stdin is a TTY."""
+
+    called: list[Sequence[str]] = []
+
+    def fake_run_process(args: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        called.append(tuple(args))
+        return _completed_process("")
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin("", isatty=True),
+        run_process=fake_run_process,
+        isatty=lambda: True,
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+    )
+
+    cli._read_diff()
+
+    assert called == [
+        ("git", "diff", "HEAD"),
+        ("git", "status", "--porcelain"),
+    ]
+
+
+def test_read_diff_combines_diff_and_status_outputs():
+    """_read_diff should concatenate diff and status outputs with a newline."""
+
+    outputs = iter(["diff-output\n", "status-output\n"])
+
+    def fake_run_process(args: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        return _completed_process(next(outputs))
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin("", isatty=True),
+        run_process=fake_run_process,
+        isatty=lambda: True,
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+    )
+
+    diff = cli._read_diff()
+
+    assert diff == "diff-output\nstatus-output"
+
+
+def test_read_diff_returns_empty_string_if_no_changes():
+    """_read_diff should return an empty string when git reports no changes."""
+
+    outputs = iter(["", ""])
+
+    def fake_run_process(args: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        return _completed_process(next(outputs))
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin("", isatty=True),
+        run_process=fake_run_process,
+        isatty=lambda: True,
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+    )
+
+    diff = cli._read_diff()
+
+    assert diff == ""
+
+
+# === Internal Helpers: _run_git_command() ================================
+
+
+def test_run_git_command_executes_process_and_returns_stdout():
+    """_run_git_command should delegate to the injected process runner."""
+
+    recorded: list[Sequence[str]] = []
+
+    def fake_run_process(args: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        recorded.append(tuple(args))
+        return _completed_process("output")
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin(),
+        run_process=fake_run_process,
+        isatty=lambda: False,
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+    )
+
+    result = cli._run_git_command(["git", "status"])
+
+    assert result == "output"
+    assert recorded == [("git", "status")]
+
+
+def test_run_git_command_strips_trailing_newlines():
+    """_run_git_command should trim whitespace from command output."""
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin(),
+        run_process=lambda _args: _completed_process("value\n\n"),
+        isatty=lambda: False,
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+    )
+
+    result = cli._run_git_command(["git", "diff"])
+
+    assert result == "value"
+
+
+def test_run_git_command_logs_command_execution(caplog: pytest.LogCaptureFixture):
+    """_run_git_command should log the command being executed."""
+
+    caplog.set_level(logging.DEBUG, logger="commit_dude.cli")
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin(),
+        run_process=lambda _args: _completed_process("ok"),
+        isatty=lambda: False,
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+    )
+
+    cli._run_git_command(["git", "status"])
+
+    log_text = " ".join(record.message for record in caplog.records)
+    assert "Running command: git status" in log_text
+    assert "Command output length" in log_text
+
+
+# === Internal Helpers: _create_commit_dude() =============================
+
+
+def test_create_commit_dude_uses_llm_factory():
+    """_create_commit_dude should invoke the configured factory exactly once."""
+
+    calls = []
+
+    def fake_factory() -> str:
+        calls.append("called")
+        return "llm"
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin(),
+        llm_factory=fake_factory,  # type: ignore[arg-type]
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+    )
+
+    result = cli._create_commit_dude()
+
+    assert calls == ["called"]
+    assert result == "llm"
+
+
+def test_create_commit_dude_returns_chatcommitdude_instance():
+    """_create_commit_dude should return the object produced by the factory."""
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin(),
+        llm_factory=lambda: DummyChatCommitDude(),
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+    )
+
+    commit_dude = cli._create_commit_dude()
+
+    assert isinstance(commit_dude, ChatCommitDude)
+    assert isinstance(commit_dude, DummyChatCommitDude)
 
