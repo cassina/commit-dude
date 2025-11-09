@@ -25,12 +25,7 @@ class FakeStructuredLLM:
         self.invocations: list[Any] = []
         self.configs: list[Any] = []
 
-    def invoke(
-        self,
-        input: Any,
-        config=None,
-        **kwargs
-    ) -> CommitMessageResponse:
+    def invoke(self, input: Any, config=None, **kwargs) -> CommitMessageResponse:
         """Return predefined response while tracking inputs."""
 
         self.invocations.append(input)
@@ -87,10 +82,10 @@ class FakeCommitDudeChat:
 
 def mock_get_env_with_key(key: str) -> Optional[str]:
     """Mock environment getter that returns API key.
-    
+
     Args:
         key: Environment variable name.
-        
+
     Returns:
         API key if requested, None otherwise.
     """
@@ -123,6 +118,7 @@ def test_init_with_valid_api_key(monkeypatch):
 
     chat_dude = ChatCommitDude(get_env=mock_get_env_with_key)
     assert chat_dude.model == "gpt-4o-mini"
+
 
 def _build_stubbed_chat_commit_dude(
     monkeypatch: pytest.MonkeyPatch,
@@ -266,7 +262,9 @@ def test_invoke_valid_diff_returns_response():
         commit_message="fix: patch bug",
     )
     fake_structured_llm = FakeStructuredLLM(expected_response)
-    fake_llm = FakeCommitDudeChat(token_count=100, structured_response=expected_response)
+    fake_llm = FakeCommitDudeChat(
+        token_count=100, structured_response=expected_response
+    )
 
     chat_dude = ChatCommitDude(
         validate_api_key=False,
@@ -388,7 +386,9 @@ def test_init_without_api_key_raises_error(monkeypatch):
     """Ensure initialization fails when API key validation is enabled."""
 
     # Avoid building real models if validation unexpectedly passes
-    monkeypatch.setattr(ChatCommitDude, "_build_model", lambda self: FakeCommitDudeChat())
+    monkeypatch.setattr(
+        ChatCommitDude, "_build_model", lambda self: FakeCommitDudeChat()
+    )
     monkeypatch.setattr(
         ChatCommitDude,
         "_build_structured_llm",
@@ -627,6 +627,7 @@ def test_invoke_with_empty_diff_still_calls_methods():
     assert result.model_dump() == fake_response.model_dump()
     assert calls == [("validate", ""), ("generate", "")]
 
+
 # === Commit Generation ===
 def test_generate_commit_message_success():
     """_generate_commit_message returns the structured response on success."""
@@ -646,4 +647,3 @@ def test_generate_commit_message_success():
 
     assert result is expected
     assert len(fake_structured.invocations) == 1
-

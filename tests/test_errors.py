@@ -3,7 +3,7 @@ def test_custom_exceptions_inheritance():
     from commit_dude.errors import (
         ChatCommitDudeError,
         TokenLimitExceededError,
-        ApiKeyMissingError
+        ApiKeyMissingError,
     )
 
     assert issubclass(TokenLimitExceededError, ChatCommitDudeError)

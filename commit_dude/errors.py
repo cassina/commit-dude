@@ -1,4 +1,3 @@
-
 class ChatCommitDudeError(Exception):
     """Base exception for ChatCommitDude errors."""
 
