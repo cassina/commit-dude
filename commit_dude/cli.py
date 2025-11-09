@@ -4,8 +4,8 @@ import subprocess
 import click
 import pyperclip
 
+from commit_dude.llm import ChatCommitDude
 from commit_dude.schemas import CommitMessageResponse
-from .llm import generate_commit_message
 
 
 @click.command()
@@ -38,7 +38,8 @@ def main():
     click.echo("🤖 Generating commit message...")
 
     try:
-        commit_response: CommitMessageResponse = generate_commit_message(diff)
+        new_commit_dude = ChatCommitDude()
+        commit_response: CommitMessageResponse = new_commit_dude.invoke(diff)
     except Exception as exc:  # pragma: no cover - surface helpful message
         click.echo(f"❌ Failed to generate commit message: {exc}", err=True)
         sys.exit(1)
