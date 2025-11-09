@@ -4,13 +4,13 @@ install:
 	uv sync --locked
 
 run:
-        uv run commit-dude
+	uv run commit-dude
 
 test:
-        uv run pytest -s --log-cli-level=DEBUG tests/
+	uv run pytest -s --log-cli-level=DEBUG tests/
 
 build:
-        uv build
+	uv build
 
 publish:
 	uv publish
