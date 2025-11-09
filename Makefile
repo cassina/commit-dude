@@ -9,6 +9,9 @@ run:
 test:
 	uv run pytest -s --log-cli-level=DEBUG tests/
 
+lint:
+	uv run ruff check .
+
 build:
 	uv build
 
