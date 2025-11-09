@@ -37,9 +37,41 @@ We use `python-dotenv` to load the `.env` file automatically.
 5. Submit a pull request.
 
 ## 🧪 Testing
-Currently, the project exposes a CLI integration check through `make test-local`. It exercises the command line
-entrypoint via `python -m commit_dude`. Because the tool makes live requests to OpenAI, tests require valid API
-credentials. Please stub network calls when adding automated tests.
+
+### Unit tests
+Unit tests are located in the `tests/` directory. Run them with:
+```bash
+uv run pytest
+```
+
+#### Unit Test Guidelines
+
+- Framework: Use pytest for all tests.
+- Style: Follow the AAA pattern: Arrange, Act, Assert.
+
+##### Isolation:
+- Mock all network, file, and API calls (e.g. ChatOpenAI, .invoke(), os.getenv). 
+- Never depend on real .env or external APIs. 
+- Coverage: Aim for ≥90% line coverage; all public methods must be tested.
+
+##### Naming:
+- Use `test_<method>_<expected_behavior>()` format.
+- One logical assertion per test when possible.
+
+##### Assertions:
+- Verify return types, side effects, and exceptions (pytest.raises). 
+- Use `caplog` for log validation if relevant.
+
+##### Fixtures:
+- Define reusable mocks and dummy data in conftest.py. 
+- Keep test files self-contained and deterministic.
+
+##### Scope:
+- Focus on behavior, not implementation details. 
+- Private methods may be tested when they contain logic (e.g. _validate_num_tokens). 
+- Currently, the project exposes a CLI integration check through `make test-local`. 
+- It exercises the command line entrypoint via `python -m commit_dude`. 
+- Because the tool makes live requests to OpenAI, tests require valid API credentials. Please stub network calls when adding automated tests.
 
 ## 📝 Coding Guidelines
 - Maintain readability and follow existing style in the codebase.
