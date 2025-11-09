@@ -75,7 +75,9 @@ class CommitDudeCLI:
         diff_output = self._run_git_command(["git", "diff", "HEAD"])
         status_output = self._run_git_command(["git", "status", "--porcelain"])
 
-        combined = "\n".join(part for part in [diff_output, status_output] if part).strip()
+        combined = "\n".join(
+            part for part in [diff_output, status_output] if part
+        ).strip()
         logger.debug("Combined diff length: %d", len(combined))
         return combined
 

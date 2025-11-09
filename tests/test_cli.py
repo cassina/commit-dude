@@ -36,7 +36,9 @@ class FakeStdin:
 class FakeLLM:
     """LLM stub that records invoke calls and returns predefined responses."""
 
-    def __init__(self, response: CommitMessageResponse, *, should_raise: bool = False) -> None:
+    def __init__(
+        self, response: CommitMessageResponse, *, should_raise: bool = False
+    ) -> None:
         self.response = response
         self.should_raise = should_raise
         self.invocations: List[str] = []
@@ -59,7 +61,9 @@ class DummyChatCommitDude(ChatCommitDude):
 def _completed_process(output: str) -> subprocess.CompletedProcess[str]:
     """Helper to build subprocess results with provided stdout."""
 
-    return subprocess.CompletedProcess(args=["git"], returncode=0, stdout=output, stderr="")
+    return subprocess.CompletedProcess(
+        args=["git"], returncode=0, stdout=output, stderr=""
+    )
 
 
 # === Initialization ======================================================
@@ -181,7 +185,9 @@ def test_run_reads_diff_from_stdin_when_not_tty():
         echo=lambda *_args, **_kwargs: None,
         echo_err=lambda *_args, **_kwargs: None,
         clipboard_copy=lambda *_args, **_kwargs: None,
-        run_process=lambda _args: (_ for _ in ()).throw(AssertionError("git should not run")),
+        run_process=lambda _args: (_ for _ in ()).throw(
+            AssertionError("git should not run")
+        ),
         isatty=lambda: False,
     )
 
@@ -472,9 +478,7 @@ def test_display_commit_logs_actions(caplog: pytest.LogCaptureFixture):
     """_display_commit should log its key actions for observability."""
 
     caplog.set_level(logging.DEBUG, logger="commit_dude.cli")
-    response = CommitMessageResponse(
-        agent_response="agent", commit_message="feat: log"
-    )
+    response = CommitMessageResponse(agent_response="agent", commit_message="feat: log")
 
     cli = CommitDudeCLI(
         stdin=FakeStdin(),
@@ -518,7 +522,9 @@ def test_default_run_process_captures_output_and_text(monkeypatch):
     def fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
         captured["args"] = args
         captured["kwargs"] = kwargs
-        return subprocess.CompletedProcess(args=args[0], returncode=0, stdout="", stderr="")
+        return subprocess.CompletedProcess(
+            args=args[0], returncode=0, stdout="", stderr=""
+        )
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
@@ -687,4 +693,3 @@ def test_create_commit_dude_returns_chatcommitdude_instance():
 
     assert isinstance(commit_dude, ChatCommitDude)
     assert isinstance(commit_dude, DummyChatCommitDude)
-
