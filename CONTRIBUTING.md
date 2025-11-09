@@ -1,21 +1,15 @@
 # Contributing to Commit Dude
 
-Thanks for your interest in contributing! This document describes how to set up your environment, make changes,
-and publish releases for Commit Dude.
-
 ## 📋 Prerequisites
 - Python 3.10+
 - [uv](https://github.com/astral-sh/uv)
 - An OpenAI API key with access to the `gpt-4o-mini` model
 
-Install uv by following the instructions in the official documentation. Once uv is available, the rest of the
-commands below will work out of the box.
-
 ## 🛠️ Project Setup
 Clone the repository and install dependencies:
 
 ```bash
-make install  # or `uv sync`
+make install
 ```
 
 This creates (or reuses) uv's isolated virtual environment and installs both runtime and development
@@ -32,7 +26,7 @@ OPENAI_API_KEY="sk-..."
 We use `python-dotenv` to load the `.env` file automatically.
 
 ## 🚧 Development Workflow
-1. Create a feature branch based on `main`.
+1. Create a feature branch based on `development`.
 2. Make your changes.
 3. Run the relevant checks:
    ```bash
@@ -43,7 +37,7 @@ We use `python-dotenv` to load the `.env` file automatically.
 5. Submit a pull request.
 
 ## 🧪 Testing
-Currently the project exposes a CLI integration check through `make test-local`. It exercises the command line
+Currently, the project exposes a CLI integration check through `make test-local`. It exercises the command line
 entrypoint via `python -m commit_dude`. Because the tool makes live requests to OpenAI, tests require valid API
 credentials. Please stub network calls when adding automated tests.
 
@@ -54,7 +48,7 @@ credentials. Please stub network calls when adding automated tests.
 - Document new configuration options in the README.
 
 ## 🚀 Releasing
-1. Update the version in `pyproject.toml` (the project tracks semantic versions; first release is `1.0.0`).
+1. Update the version in `pyproject.toml` (the project tracks semantic versions; first release is `0.1.0`).
 2. Regenerate the changelog (if present) and ensure documentation reflects the release.
 3. Build artifacts:
    ```bash
@@ -67,8 +61,7 @@ credentials. Please stub network calls when adding automated tests.
 5. Create a Git tag matching the version and push it to the repository.
 
 
-
-# Recommended Release Verification Flow
+## Recommended Release Verification Flow
 
 ### 1. Refresh dependencies in your development environment
 Run:
@@ -138,13 +131,11 @@ Export your API key:
 export OPENAI_API_KEY=your-key
 ```
 
-Then run:
+Then run the following to confirm the console script was generated.:
 
 ```bash
 commit-dude --help
 ```
-
-to confirm the console script was generated.
 
 Perform a lightweight sanity check by:
 
@@ -152,11 +143,6 @@ Perform a lightweight sanity check by:
 
   ```bash
   printf 'diff --git ...' | commit-dude
-  ```
-* Or running inside a repo with staged changes:
-
-  ```bash
-  python -m commit_dude
   ```
 
 These confirm that the **Click command**, **OpenAI integration**, and **clipboard copy** pathways all work end-to-end.
@@ -175,6 +161,6 @@ This helps catch missing package data that might not appear when testing only th
 
 ---
 
-Following this sequence guarantees that the **exact artifacts** you plan to upload to **PyPI** have already been installed and exercised in isolation — mirroring your users’ experience.
+By following this sequence guarantees that the **exact artifacts** you plan to upload to **PyPI** have already been installed and exercised in isolation — mirroring your users’ experience.
 
 
