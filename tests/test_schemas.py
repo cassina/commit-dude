@@ -31,10 +31,10 @@ def test_commit_message_response_requires_fields(missing_field):
 
 @pytest.mark.parametrize("field", ["agent_response", "commit_message"])
 def test_commit_message_response_rejects_none(field):
-    payload = {
-        "agent_response": "Summarized diff",
-        "commit_message": "feat: add new feature",
-    }
+    payload = dict(
+        agent_response="Summarized diff",
+        commit_message="feat: add new feature"
+    )
     payload[field] = None
 
     with pytest.raises(ValidationError):
