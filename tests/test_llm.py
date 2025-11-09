@@ -26,6 +26,8 @@ class FakeStructuredLLM:
             response: CommitMessageResponse to return on invoke.
         """
         self.response = response
+        self.invocations: list[Any] = []
+        self.configs: list[Any] = []
 
     def invoke(
         self,
@@ -33,16 +35,10 @@ class FakeStructuredLLM:
         config=None,
         **kwargs
     ) -> CommitMessageResponse:
-        """Return predefined response.
+        """Return predefined response while tracking inputs."""
 
-        Args:
-            input: Input data (ignored).
-            config: Configuration (ignored).
-            **kwargs: Additional arguments (ignored).
-
-        Returns:
-            Predefined CommitMessageResponse.
-        """
+        self.invocations.append(input)
+        self.configs.append(config)
         return self.response
 
 
@@ -64,6 +60,7 @@ class FakeCommitDudeChat:
             agent_response="",
             commit_message="",
         )
+        self.last_get_num_tokens_input: Optional[str] = None
 
     def with_structured_output(self, output: Any) -> "FakeStructuredLLM":
         """Track structured output calls and return fake runnable."""
@@ -75,6 +72,7 @@ class FakeCommitDudeChat:
     def get_num_tokens(self, _: str) -> int:
         """Return predetermined token count for diff inspection."""
 
+        self.last_get_num_tokens_input = _
         return self.token_count
 
 
@@ -117,26 +115,102 @@ def test_init_with_valid_api_key(monkeypatch):
     chat_dude = ChatCommitDude(get_env=mock_get_env_with_key)
     assert chat_dude.model == "gpt-4o-mini"
 
-def test_repr_and_str_methods(monkeypatch):
-    """Test __repr__ and __str__ methods return expected formats."""
+def _build_stubbed_chat_commit_dude(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    validate_api_key: bool = False,
+    get_env=mock_get_env_with_key,
+    llm: Optional[FakeCommitDudeChat] = None,
+    structured_llm: Optional[FakeStructuredLLM] = None,
+) -> ChatCommitDude:
+    """Helper to create ChatCommitDude with fakes without touching network."""
 
-    dummy_llm = FakeCommitDudeChat()
-
+    dummy_llm = llm or FakeCommitDudeChat()
     monkeypatch.setattr(ChatCommitDude, "_build_model", lambda self: dummy_llm)
-    monkeypatch.setattr(
-        ChatCommitDude,
-        "_build_structured_llm",
-        lambda self: "structured-llm",
+
+    if structured_llm is None:
+        monkeypatch.setattr(
+            ChatCommitDude,
+            "_build_structured_llm",
+            lambda self: FakeStructuredLLM(
+                CommitMessageResponse(agent_response="", commit_message="")
+            ),
+        )
+    else:
+        monkeypatch.setattr(
+            ChatCommitDude,
+            "_build_structured_llm",
+            lambda self: structured_llm,
+        )
+
+    return ChatCommitDude(
+        validate_api_key=validate_api_key,
+        get_env=get_env,
     )
 
-    chat_dude = ChatCommitDude(validate_api_key=False)
+
+def test_validate_api_key_present_does_not_raise(monkeypatch):
+    """_validate_api_key succeeds when the key exists."""
+
+    chat_dude = _build_stubbed_chat_commit_dude(monkeypatch, validate_api_key=False)
+
+    # Should not raise when API key is provided
+    chat_dude._validate_api_key()
+
+
+def test_validate_api_key_missing_raises_error(monkeypatch):
+    """_validate_api_key raises ApiKeyMissingError when key is missing."""
+
+    chat_dude = _build_stubbed_chat_commit_dude(
+        monkeypatch,
+        validate_api_key=False,
+        get_env=mock_get_env_without_key,
+    )
+
+    with pytest.raises(ApiKeyMissingError):
+        chat_dude._validate_api_key()
+
+
+def test_build_messages_creates_system_and_human_messages():
+    """_build_messages constructs the expected LangChain message sequence."""
+
+    diff = "diff --git a/foo b/foo"
+    messages = ChatCommitDude._build_messages(diff)
+
+    assert len(messages) == 2
+    assert messages[0].__class__.__name__ == "SystemMessage"
+    assert messages[1].__class__.__name__ == "HumanMessage"
+    assert diff in messages[1].content
+
+
+def test_build_messages_uses_custom_system_prompt():
+    """_build_messages should respect an override for the system prompt."""
+
+    diff = "diff --git a/foo b/foo"
+    custom_prompt = "custom system prompt"
+
+    messages = ChatCommitDude._build_messages(diff, system_prompt=custom_prompt)
+
+    assert messages[0].content == custom_prompt
+
+
+def test_repr_contains_class_and_model(monkeypatch):
+    """__repr__ includes the class name and selected model."""
+
+    chat_dude = _build_stubbed_chat_commit_dude(monkeypatch)
 
     repr_str = repr(chat_dude)
-    assert "ChatCommitDude" in repr_str
-    assert "gpt-4o-mini" in repr_str
+    assert chat_dude.__class__.__name__ in repr_str
+    assert chat_dude.model in repr_str
 
-    str_str = str(chat_dude)
-    assert "ChatCommitDude using gpt-4o-mini" in str_str
+
+def test_str_contains_model_name(monkeypatch):
+    """__str__ provides a human readable message with the model name."""
+
+    chat_dude = _build_stubbed_chat_commit_dude(monkeypatch)
+
+    human_str = str(chat_dude)
+    assert chat_dude.model in human_str
 
 
 def test_init_without_api_key_raises_error(monkeypatch):
@@ -323,4 +397,62 @@ def test_validate_num_tokens_logs_information(caplog):
     chat_dude._validate_num_tokens("diff content")
 
     assert any("Diff token count" in record.message for record in caplog.records)
+
+
+def test_end_to_end_invoke_with_mocks(monkeypatch):
+    """invoke should run through validation and message generation using fakes."""
+
+    fake_response = CommitMessageResponse(
+        agent_response="sure thing",
+        commit_message="feat: add new feature",
+    )
+    fake_llm = FakeCommitDudeChat(token_count=12, structured_response=fake_response)
+
+    chat_dude = ChatCommitDude(
+        llm=fake_llm,
+        validate_api_key=False,
+    )
+
+    diff = "diff --git a/foo b/foo\n+"
+    result = chat_dude.invoke(diff)
+
+    assert result.model_dump() == fake_response.model_dump()
+    assert fake_llm.with_structured_output_called is True
+    assert fake_llm.output_model is CommitMessageResponse
+    assert fake_llm.last_get_num_tokens_input == diff
+
+    assert len(chat_dude.structured_llm.invocations) == 1
+    messages = chat_dude.structured_llm.invocations[0]
+    assert messages[0].__class__.__name__ == "SystemMessage"
+    assert messages[1].__class__.__name__ == "HumanMessage"
+    assert "Please create a commit" in messages[1].content
+
+
+def test_invoke_with_empty_diff_still_calls_methods():
+    """Even an empty diff should trigger validation and generation flows."""
+
+    fake_response = CommitMessageResponse(agent_response="ok", commit_message="msg")
+    fake_llm = FakeCommitDudeChat(structured_response=fake_response)
+    chat_dude = ChatCommitDude(
+        llm=fake_llm,
+        validate_api_key=False,
+    )
+
+    calls = []
+
+    def fake_validate(diff: str) -> int:
+        calls.append(("validate", diff))
+        return 0
+
+    def fake_generate(diff: str) -> CommitMessageResponse:
+        calls.append(("generate", diff))
+        return fake_response
+
+    chat_dude._validate_num_tokens = fake_validate
+    chat_dude._generate_commit_message = fake_generate
+
+    result = chat_dude.invoke("")
+
+    assert result.model_dump() == fake_response.model_dump()
+    assert calls == [("validate", ""), ("generate", "")]
 
