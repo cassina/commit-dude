@@ -35,12 +35,5 @@ class CommitDudeFormatter(logging.Formatter):
 
 
 # Configure logger
-logger = logging.getLogger(__name__)
-
-# Only configure custom handler if not running under pytest
-if 'pytest' not in sys.modules and not logger.handlers:
-    handler = logging.StreamHandler()
-    handler.setFormatter(CommitDudeFormatter('%(message)s'))
-    logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG)
-    logger.propagate = False
+def commit_dude_logger(file_name):
+    return logging.getLogger(file_name)
