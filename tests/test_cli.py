@@ -8,10 +8,12 @@ from typing import Any, List, Sequence
 
 import pytest
 
+from click.testing import CliRunner
+
 import click
 import pyperclip
 
-from commit_dude.cli import CommitDudeCLI, ChatCommitDude
+from commit_dude.cli import CommitDudeCLI, ChatCommitDude, main
 from commit_dude.schemas import CommitMessageResponse
 
 
@@ -397,6 +399,191 @@ def test_read_diff_returns_empty_string_if_no_changes():
     diff = cli._read_diff()
 
     assert diff == ""
+
+
+# === Internal Helpers: _display_commit() ====================================
+
+
+def test_display_commit_echoes_agent_and_message():
+    """_display_commit should echo the agent response and commit message."""
+
+    response = CommitMessageResponse(
+        agent_response="Agent response", commit_message="feat: example"
+    )
+    echoes: list[str] = []
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin(),
+        echo=lambda message, **_: echoes.append(message),
+        echo_err=lambda *_args, **_kwargs: None,
+        clipboard_copy=lambda *_args, **_kwargs: None,
+        isatty=lambda: False,
+    )
+
+    cli._display_commit(response)
+
+    assert response.agent_response in echoes
+    assert response.commit_message in echoes
+
+
+def test_display_commit_copies_message_to_clipboard():
+    """_display_commit should copy the commit message to the clipboard."""
+
+    response = CommitMessageResponse(
+        agent_response="ignored", commit_message="feat: clipboard"
+    )
+    clipboard: list[str] = []
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin(),
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+        clipboard_copy=lambda value: clipboard.append(value),
+        isatty=lambda: False,
+    )
+
+    cli._display_commit(response)
+
+    assert clipboard == ["feat: clipboard"]
+
+
+def test_display_commit_echoes_confirmation_message():
+    """_display_commit should emit the confirmation banner after copying."""
+
+    response = CommitMessageResponse(
+        agent_response="agent", commit_message="feat: confirm"
+    )
+    echoes: list[str] = []
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin(),
+        echo=lambda message, **_: echoes.append(message),
+        echo_err=lambda *_args, **_kwargs: None,
+        clipboard_copy=lambda *_args, **_kwargs: None,
+        isatty=lambda: False,
+    )
+
+    cli._display_commit(response)
+
+    assert echoes[-1].strip() == "✅ Suggested commit message copied to clipboard."
+
+
+def test_display_commit_logs_actions(caplog: pytest.LogCaptureFixture):
+    """_display_commit should log its key actions for observability."""
+
+    caplog.set_level(logging.DEBUG, logger="commit_dude.cli")
+    response = CommitMessageResponse(
+        agent_response="agent", commit_message="feat: log"
+    )
+
+    cli = CommitDudeCLI(
+        stdin=FakeStdin(),
+        echo=lambda *_args, **_kwargs: None,
+        echo_err=lambda *_args, **_kwargs: None,
+        clipboard_copy=lambda *_args, **_kwargs: None,
+        isatty=lambda: False,
+    )
+
+    cli._display_commit(response)
+
+    messages = " ".join(record.message for record in caplog.records)
+    assert "Displaying agent response and commit message" in messages
+    assert "Copying commit message to clipboard" in messages
+
+
+# === Static Helpers: _default_run_process() ================================
+
+
+def test_default_run_process_returns_completed_process(monkeypatch):
+    """_default_run_process should return the subprocess result."""
+
+    def fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=args[0], returncode=0, stdout="output", stderr=""
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = CommitDudeCLI._default_run_process(["git", "status"])
+
+    assert isinstance(result, subprocess.CompletedProcess)
+    assert result.stdout == "output"
+
+
+def test_default_run_process_captures_output_and_text(monkeypatch):
+    """_default_run_process should request captured, text-mode output."""
+
+    captured: dict[str, Any] = {}
+
+    def fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return subprocess.CompletedProcess(args=args[0], returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    CommitDudeCLI._default_run_process(["git", "diff"])
+
+    assert captured["args"] == (["git", "diff"],)
+    assert captured["kwargs"] == {
+        "capture_output": True,
+        "text": True,
+        "check": False,
+    }
+
+
+# === CLI Entrypoint: main() ===============================================
+
+
+def test_main_invokes_commitdudecli_run_and_exits(monkeypatch: pytest.MonkeyPatch):
+    """main() should construct CommitDudeCLI, invoke run, and exit."""
+
+    instances: list["FakeCLI"] = []
+
+    class FakeCLI:
+        def __init__(self) -> None:
+            self.run_calls = 0
+            instances.append(self)
+
+        def run(self) -> int:
+            self.run_calls += 1
+            return 0
+
+    monkeypatch.setattr("commit_dude.cli.CommitDudeCLI", FakeCLI)
+
+    result = CliRunner().invoke(main)
+
+    assert result.exit_code == 0
+    assert len(instances) == 1
+    assert instances[0].run_calls == 1
+
+
+def test_main_returns_exit_code_0_on_success(monkeypatch: pytest.MonkeyPatch):
+    """main() should propagate a zero exit code when run succeeds."""
+
+    class SuccessfulCLI:
+        def run(self) -> int:
+            return 0
+
+    monkeypatch.setattr("commit_dude.cli.CommitDudeCLI", SuccessfulCLI)
+
+    result = CliRunner().invoke(main)
+
+    assert result.exit_code == 0
+
+
+def test_main_returns_exit_code_1_on_failure(monkeypatch: pytest.MonkeyPatch):
+    """main() should return exit code 1 when the CLI run fails."""
+
+    class FailingCLI:
+        def run(self) -> int:
+            return 1
+
+    monkeypatch.setattr("commit_dude.cli.CommitDudeCLI", FailingCLI)
+
+    result = CliRunner().invoke(main)
+
+    assert result.exit_code == 1
 
 
 # === Internal Helpers: _run_git_command() ================================
