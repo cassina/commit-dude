@@ -28,3 +28,8 @@ packages = ["commit_dude"]
 [tool.pytest.ini_options]
 addopts = "--cov=commit_dude --cov-report=term-missing"
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.4",
+]
