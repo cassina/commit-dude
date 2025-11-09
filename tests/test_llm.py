@@ -38,6 +38,19 @@ class FakeStructuredLLM:
         return self.response
 
 
+class ExplodingStructuredLLM:
+    """Structured LLM stub that raises an exception to test error handling."""
+
+    def __init__(self) -> None:
+        self.invocations: list[Any] = []
+
+    def invoke(self, input: Any, *args: Any, **kwargs: Any) -> CommitMessageResponse:
+        """Record invocations then raise an exception."""
+
+        self.invocations.append(input)
+        raise RuntimeError("boom")
+
+
 class FakeCommitDudeChat:
     """Minimal chat model stub for exercising ChatCommitDude logic in tests."""
 
@@ -190,6 +203,51 @@ def test_build_messages_uses_custom_system_prompt():
     assert messages[0].content == custom_prompt
 
 
+def test_generate_commit_message_handles_exception(monkeypatch, caplog):
+    """_generate_commit_message should propagate errors while logging them."""
+
+    exploding_llm = ExplodingStructuredLLM()
+    chat_dude = _build_stubbed_chat_commit_dude(
+        monkeypatch,
+        validate_api_key=False,
+        structured_llm=exploding_llm,
+    )
+
+    diff = "diff --git a/foo b/foo"
+    caplog.set_level(logging.ERROR)
+
+    with pytest.raises(RuntimeError):
+        chat_dude._generate_commit_message(diff)
+
+    assert exploding_llm.invocations, "Structured LLM should have been invoked"
+    assert "Failed to generate commit message" in caplog.text
+
+
+def test_generate_commit_message_builds_messages_correctly(monkeypatch):
+    """_generate_commit_message passes built messages to the structured LLM."""
+
+    expected_response = CommitMessageResponse(
+        agent_response="hey",
+        commit_message="feat: add stuff",
+    )
+    fake_structured_llm = FakeStructuredLLM(expected_response)
+    chat_dude = _build_stubbed_chat_commit_dude(
+        monkeypatch,
+        validate_api_key=False,
+        structured_llm=fake_structured_llm,
+    )
+
+    diff = "diff --git a/foo b/foo"
+    result = chat_dude._generate_commit_message(diff)
+
+    assert result == expected_response
+    assert len(fake_structured_llm.invocations) == 1
+    messages = fake_structured_llm.invocations[0]
+    assert len(messages) == 2
+    assert messages[0].__class__.__name__ == "SystemMessage"
+    assert diff in messages[1].content
+
+
 def test_repr_contains_class_and_model(monkeypatch):
     """__repr__ includes the class name and selected model."""
 
@@ -198,6 +256,123 @@ def test_repr_contains_class_and_model(monkeypatch):
     repr_str = repr(chat_dude)
     assert chat_dude.__class__.__name__ in repr_str
     assert chat_dude.model in repr_str
+
+
+def test_invoke_valid_diff_returns_response():
+    """invoke should validate tokens and return structured response."""
+
+    expected_response = CommitMessageResponse(
+        agent_response="sup",
+        commit_message="fix: patch bug",
+    )
+    fake_structured_llm = FakeStructuredLLM(expected_response)
+    fake_llm = FakeCommitDudeChat(token_count=100, structured_response=expected_response)
+
+    chat_dude = ChatCommitDude(
+        validate_api_key=False,
+        get_env=mock_get_env_with_key,
+        llm=fake_llm,
+        structured_llm=fake_structured_llm,
+    )
+
+    diff = "diff --git a/foo b/foo"
+    response = chat_dude.invoke(diff)
+
+    assert response == expected_response
+    assert fake_llm.last_get_num_tokens_input == diff
+
+
+def test_invoke_raises_token_limit_exceeded():
+    """invoke should raise TokenLimitExceededError when diff too large."""
+
+    fake_llm = FakeCommitDudeChat(token_count=10)
+    chat_dude = ChatCommitDude(
+        validate_api_key=False,
+        get_env=mock_get_env_with_key,
+        llm=fake_llm,
+        structured_llm=FakeStructuredLLM(
+            CommitMessageResponse(agent_response="", commit_message="")
+        ),
+        max_tokens=5,
+    )
+
+    diff = "diff --git a/foo b/foo"
+
+    with pytest.raises(TokenLimitExceededError):
+        chat_dude.invoke(diff)
+
+
+def test_invoke_logs_start_and_completion(monkeypatch, caplog):
+    """invoke should log start and completion messages."""
+
+    expected_response = CommitMessageResponse(
+        agent_response="hey",
+        commit_message="chore: tidy",
+    )
+    fake_structured_llm = FakeStructuredLLM(expected_response)
+    fake_llm = FakeCommitDudeChat(token_count=1, structured_response=expected_response)
+    chat_dude = ChatCommitDude(
+        validate_api_key=False,
+        get_env=mock_get_env_with_key,
+        llm=fake_llm,
+        structured_llm=fake_structured_llm,
+    )
+
+    caplog.set_level(logging.INFO)
+
+    chat_dude.invoke("diff --git a/foo b/foo")
+
+    assert "Starting commit message generation" in caplog.text
+    assert "Commit message generation completed successfully" in caplog.text
+
+
+def test_build_model_creates_chatopenai_with_defaults(monkeypatch):
+    """_build_model should instantiate ChatOpenAI with expected defaults."""
+
+    created_kwargs: dict[str, Any] = {}
+
+    class DummyChatOpenAI:
+        def __init__(self, *, model: str, temperature: float) -> None:
+            created_kwargs["model"] = model
+            created_kwargs["temperature"] = temperature
+            self.model_name = model
+
+    monkeypatch.setattr("commit_dude.llm.ChatOpenAI", DummyChatOpenAI)
+
+    chat_dude = ChatCommitDude(
+        validate_api_key=False,
+        get_env=mock_get_env_with_key,
+        llm=FakeCommitDudeChat(),
+        structured_llm=FakeStructuredLLM(
+            CommitMessageResponse(agent_response="", commit_message="")
+        ),
+    )
+
+    built_llm = chat_dude._build_model()
+
+    assert isinstance(built_llm, DummyChatOpenAI)
+    assert created_kwargs["model"] == ChatCommitDude.DEFAULT_MODEL
+    assert created_kwargs["temperature"] == ChatCommitDude.DEFAULT_TEMPERATURE
+
+
+def test_build_structured_llm_wraps_llm_with_output(monkeypatch):
+    """_build_structured_llm should call with_structured_output on base LLM."""
+
+    fake_llm = FakeCommitDudeChat()
+    chat_dude = ChatCommitDude(
+        validate_api_key=False,
+        get_env=mock_get_env_with_key,
+        llm=fake_llm,
+        structured_llm=FakeStructuredLLM(
+            CommitMessageResponse(agent_response="", commit_message="")
+        ),
+    )
+
+    structured_llm = chat_dude._build_structured_llm()
+
+    assert fake_llm.with_structured_output_called is True
+    assert fake_llm.output_model is chat_dude.output
+    assert isinstance(structured_llm, FakeStructuredLLM)
 
 
 def test_str_contains_model_name(monkeypatch):
