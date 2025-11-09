@@ -1,7 +1,7 @@
 # Simple Makefile for Commit Dude
 
 install:
-	uv sync
+	uv sync --locked
 
 run:
 	uv run commit-dude
