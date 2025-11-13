@@ -120,6 +120,28 @@ def test_init_with_valid_api_key(monkeypatch):
     assert chat_dude.model == "gpt-4o-mini"
 
 
+def test_init_accepts_custom_logger(monkeypatch):
+    """Injected loggers should be preserved for use across the class."""
+
+    dummy_llm = FakeCommitDudeChat()
+
+    monkeypatch.setattr(ChatCommitDude, "_build_model", lambda self: dummy_llm)
+    monkeypatch.setattr(
+        ChatCommitDude,
+        "_build_structured_llm",
+        lambda self: "structured-llm",
+    )
+
+    custom_logger = logging.getLogger("commit_dude.tests.custom")
+
+    chat_dude = ChatCommitDude(
+        get_env=mock_get_env_with_key,
+        logger=custom_logger,
+    )
+
+    assert chat_dude._logger is custom_logger  # noqa: SLF001 - validating injection
+
+
 def _build_stubbed_chat_commit_dude(
     monkeypatch: pytest.MonkeyPatch,
     *,
@@ -180,7 +202,15 @@ def test_build_messages_creates_system_and_human_messages():
     """_build_messages constructs the expected LangChain message sequence."""
 
     diff = "diff --git a/foo b/foo"
-    messages = ChatCommitDude._build_messages(diff)
+    chat_dude = ChatCommitDude(
+        llm=FakeCommitDudeChat(),
+        structured_llm=FakeStructuredLLM(
+            CommitMessageResponse(agent_response="", commit_message="")
+        ),
+        validate_api_key=False,
+    )
+
+    messages = chat_dude._build_messages(diff)
 
     assert len(messages) == 2
     assert messages[0].__class__.__name__ == "SystemMessage"
@@ -194,7 +224,15 @@ def test_build_messages_uses_custom_system_prompt():
     diff = "diff --git a/foo b/foo"
     custom_prompt = "custom system prompt"
 
-    messages = ChatCommitDude._build_messages(diff, system_prompt=custom_prompt)
+    chat_dude = ChatCommitDude(
+        llm=FakeCommitDudeChat(),
+        structured_llm=FakeStructuredLLM(
+            CommitMessageResponse(agent_response="", commit_message="")
+        ),
+        validate_api_key=False,
+    )
+
+    messages = chat_dude._build_messages(diff, system_prompt=custom_prompt)
 
     assert messages[0].content == custom_prompt
 
