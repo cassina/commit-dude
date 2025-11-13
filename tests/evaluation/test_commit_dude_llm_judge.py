@@ -1,9 +1,13 @@
 import pytest
-from agentevals.trajectory.llm import create_trajectory_llm_as_judge, TRAJECTORY_ACCURACY_PROMPT
+from agentevals.trajectory.llm import (
+    create_trajectory_llm_as_judge,
+    TRAJECTORY_ACCURACY_PROMPT,
+)
 from commit_dude.llm import ChatCommitDude
 from commit_dude.settings import commit_dude_logger
 
 logger = commit_dude_logger(__name__)
+
 
 @pytest.mark.langsmith
 def test_commit_dude_output_llm_as_judge():
@@ -18,7 +22,7 @@ def test_commit_dude_output_llm_as_judge():
     outputs = [
         {
             "role": "assistant",
-            "content": f"{result.agent_response}\n\n{result.commit_message}"
+            "content": f"{result.agent_response}\n\n{result.commit_message}",
         }
     ]
 

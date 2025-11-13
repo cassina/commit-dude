@@ -269,7 +269,7 @@ def test_run_handles_llm_exceptions_and_returns_1():
     )
 
     assert cli.run() == 1
-    assert any("Failed to generate commit message" in msg for msg in errors)
+    assert any("unexpected error occurred" in msg.lower() for msg in errors)
 
 
 def test_run_logs_start_and_completion_messages(caplog: pytest.LogCaptureFixture):
