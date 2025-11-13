@@ -3,7 +3,6 @@
 """Module for managing commit message generation using OpenAI's LLM."""
 
 import logging
-import os
 from typing import Callable, List, Optional, Type, Union
 
 from pydantic import BaseModel
@@ -15,14 +14,15 @@ from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage
 
 from commit_dude.schemas import CommitMessageResponse
 from commit_dude.config import SYSTEM_PROMPT, MAX_TOKENS
-from commit_dude.settings import commit_dude_logger
+from commit_dude.settings import (
+    API_KEY_ENV_VAR,
+    commit_dude_logger,
+    get_openai_api_key,
+)
 from commit_dude.errors import TokenLimitExceededError, ApiKeyMissingError
 
 # Load .env automatically
 load_dotenv()
-
-
-API_KEY_ENV_VAR = "OPENAI_API_KEY"
 
 
 class ChatCommitDude:
@@ -49,7 +49,7 @@ class ChatCommitDude:
         output: Type[BaseModel] = CommitMessageResponse,
         llm: Optional[Union[ChatOpenAI, BaseChatModel]] = None,
         structured_llm: Optional[Runnable] = None,
-        get_env: Callable[[str], Optional[str]] = os.getenv,
+        get_api_key: Callable[[], Optional[str]] = get_openai_api_key,
         max_tokens: int = MAX_TOKENS,
         validate_api_key: bool = True,
         logger: Optional[logging.Logger] = None,
@@ -61,7 +61,7 @@ class ChatCommitDude:
             output: Pydantic model class for structured output.
             llm: Pre-configured language model instance.
             structured_llm: Pre-configured structured output runnable.
-            get_env: Function to retrieve environment variables.
+            get_api_key: Function that returns the OpenAI API key.
             max_tokens: Maximum allowed tokens for input diff.
             validate_api_key: Whether to validate API key during initialization.
 
@@ -74,7 +74,7 @@ class ChatCommitDude:
 
         self.model = model
         self.output = output
-        self._get_env = get_env
+        self._get_api_key = get_api_key
         self.max_tokens = max_tokens
 
         if validate_api_key:
@@ -204,7 +204,7 @@ class ChatCommitDude:
         """
         self._logger.debug("Validating %s", API_KEY_ENV_VAR)
 
-        api_key = self._get_env(API_KEY_ENV_VAR)
+        api_key = self._get_api_key()
         if not api_key:
             error_msg = f"Missing {API_KEY_ENV_VAR}. Set it in your .env file."
             self._logger.error(error_msg)

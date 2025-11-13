@@ -80,27 +80,15 @@ class FakeCommitDudeChat:
         return self.token_count
 
 
-def mock_get_env_with_key(key: str) -> Optional[str]:
-    """Mock environment getter that returns API key.
+def mock_get_api_key_with_value() -> Optional[str]:
+    """Mock API key retriever that returns a placeholder key."""
 
-    Args:
-        key: Environment variable name.
-
-    Returns:
-        API key if requested, None otherwise.
-    """
-    return "sk-test-key" if key == "OPENAI_API_KEY" else None
+    return "sk-test-key"
 
 
-def mock_get_env_without_key(key: str) -> Optional[str]:
-    """Mock environment getter that returns None for all keys.
+def mock_get_api_key_missing() -> Optional[str]:
+    """Mock API key retriever that always returns None."""
 
-    Args:
-        key: Environment variable name (ignored).
-
-    Returns:
-        Always None.
-    """
     return None
 
 
@@ -116,7 +104,7 @@ def test_init_with_valid_api_key(monkeypatch):
         lambda self: "structured-llm",
     )
 
-    chat_dude = ChatCommitDude(get_env=mock_get_env_with_key)
+    chat_dude = ChatCommitDude(get_api_key=mock_get_api_key_with_value)
     assert chat_dude.model == "gpt-4o-mini"
 
 
@@ -135,7 +123,7 @@ def test_init_accepts_custom_logger(monkeypatch):
     custom_logger = logging.getLogger("commit_dude.tests.custom")
 
     chat_dude = ChatCommitDude(
-        get_env=mock_get_env_with_key,
+        get_api_key=mock_get_api_key_with_value,
         logger=custom_logger,
     )
 
@@ -146,7 +134,7 @@ def _build_stubbed_chat_commit_dude(
     monkeypatch: pytest.MonkeyPatch,
     *,
     validate_api_key: bool = False,
-    get_env=mock_get_env_with_key,
+    get_api_key=mock_get_api_key_with_value,
     llm: Optional[FakeCommitDudeChat] = None,
     structured_llm: Optional[FakeStructuredLLM] = None,
 ) -> ChatCommitDude:
@@ -172,7 +160,7 @@ def _build_stubbed_chat_commit_dude(
 
     return ChatCommitDude(
         validate_api_key=validate_api_key,
-        get_env=get_env,
+        get_api_key=get_api_key,
     )
 
 
@@ -191,7 +179,7 @@ def test_validate_api_key_missing_raises_error(monkeypatch):
     chat_dude = _build_stubbed_chat_commit_dude(
         monkeypatch,
         validate_api_key=False,
-        get_env=mock_get_env_without_key,
+        get_api_key=mock_get_api_key_missing,
     )
 
     with pytest.raises(ApiKeyMissingError):
@@ -306,7 +294,7 @@ def test_invoke_valid_diff_returns_response():
 
     chat_dude = ChatCommitDude(
         validate_api_key=False,
-        get_env=mock_get_env_with_key,
+        get_api_key=mock_get_api_key_with_value,
         llm=fake_llm,
         structured_llm=fake_structured_llm,
     )
@@ -324,7 +312,7 @@ def test_invoke_raises_token_limit_exceeded():
     fake_llm = FakeCommitDudeChat(token_count=10)
     chat_dude = ChatCommitDude(
         validate_api_key=False,
-        get_env=mock_get_env_with_key,
+        get_api_key=mock_get_api_key_with_value,
         llm=fake_llm,
         structured_llm=FakeStructuredLLM(
             CommitMessageResponse(agent_response="", commit_message="")
@@ -349,7 +337,7 @@ def test_invoke_logs_start_and_completion(monkeypatch, caplog):
     fake_llm = FakeCommitDudeChat(token_count=1, structured_response=expected_response)
     chat_dude = ChatCommitDude(
         validate_api_key=False,
-        get_env=mock_get_env_with_key,
+        get_api_key=mock_get_api_key_with_value,
         llm=fake_llm,
         structured_llm=fake_structured_llm,
     )
@@ -377,7 +365,7 @@ def test_build_model_creates_chatopenai_with_defaults(monkeypatch):
 
     chat_dude = ChatCommitDude(
         validate_api_key=False,
-        get_env=mock_get_env_with_key,
+        get_api_key=mock_get_api_key_with_value,
         llm=FakeCommitDudeChat(),
         structured_llm=FakeStructuredLLM(
             CommitMessageResponse(agent_response="", commit_message="")
@@ -397,7 +385,7 @@ def test_build_structured_llm_wraps_llm_with_output(monkeypatch):
     fake_llm = FakeCommitDudeChat()
     chat_dude = ChatCommitDude(
         validate_api_key=False,
-        get_env=mock_get_env_with_key,
+        get_api_key=mock_get_api_key_with_value,
         llm=fake_llm,
         structured_llm=FakeStructuredLLM(
             CommitMessageResponse(agent_response="", commit_message="")
@@ -436,7 +424,7 @@ def test_init_without_api_key_raises_error(monkeypatch):
     )
 
     with pytest.raises(ApiKeyMissingError):
-        ChatCommitDude(get_env=mock_get_env_without_key)
+        ChatCommitDude(get_api_key=mock_get_api_key_missing)
 
 
 def test_init_skips_api_key_validation_when_disabled(monkeypatch):
@@ -458,7 +446,7 @@ def test_init_skips_api_key_validation_when_disabled(monkeypatch):
 
     chat_dude = ChatCommitDude(
         validate_api_key=False,
-        get_env=mock_get_env_without_key,
+        get_api_key=mock_get_api_key_missing,
     )
 
     assert chat_dude.llm is dummy_llm
@@ -477,7 +465,7 @@ def test_init_uses_default_model_and_output(monkeypatch):
         lambda self: "structured-llm",
     )
 
-    chat_dude = ChatCommitDude(get_env=mock_get_env_with_key)
+    chat_dude = ChatCommitDude(get_api_key=mock_get_api_key_with_value)
 
     assert chat_dude.model == ChatCommitDude.DEFAULT_MODEL
     assert chat_dude.output is CommitMessageResponse
@@ -529,7 +517,7 @@ def test_build_model_called_when_no_llm_provided(monkeypatch):
         lambda self: "structured-llm",
     )
 
-    chat_dude = ChatCommitDude(get_env=mock_get_env_with_key)
+    chat_dude = ChatCommitDude(get_api_key=mock_get_api_key_with_value)
 
     assert build_model_called is True
     assert chat_dude.llm is dummy_llm
@@ -550,7 +538,7 @@ def test_build_structured_llm_called_when_no_structured_llm_provided(monkeypatch
 
     monkeypatch.setattr(ChatCommitDude, "_build_structured_llm", fake_build_structured)
 
-    chat_dude = ChatCommitDude(get_env=mock_get_env_with_key)
+    chat_dude = ChatCommitDude(get_api_key=mock_get_api_key_with_value)
 
     assert structured_called is True
     assert chat_dude.structured_llm == "structured-llm"

@@ -5,7 +5,18 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Final
+from typing import Callable, Final
+
+
+API_KEY_ENV_VAR: Final[str] = "OPENAI_API_KEY"
+
+
+def get_openai_api_key(
+    get_env: Callable[[str], str | None] = os.getenv,
+) -> str | None:
+    """Return the OpenAI API key from the configured environment."""
+
+    return get_env(API_KEY_ENV_VAR)
 
 
 _REGISTERED_LOGGERS: set[logging.Logger] = set()
