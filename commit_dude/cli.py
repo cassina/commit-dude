@@ -1,4 +1,5 @@
 """Command-line interface for Commit Dude."""
+
 import sys
 import subprocess
 from typing import Callable, Optional, Sequence, TextIO
@@ -160,7 +161,6 @@ def main(debug: bool) -> None:
 
     cli = CommitDudeCLI()
     sys.exit(cli.run())
-
 
 
 if __name__ == "__main__":

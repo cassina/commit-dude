@@ -22,6 +22,9 @@ from commit_dude.errors import TokenLimitExceededError, ApiKeyMissingError
 load_dotenv()
 
 
+API_KEY_ENV_VAR = "OPENAI_API_KEY"
+
+
 class ChatCommitDude:
     """Manage commit message generation.
 
@@ -199,15 +202,15 @@ class ChatCommitDude:
         Raises:
             ApiKeyMissingError: If OPENAI_API_KEY is not found.
         """
-        self._logger.debug("Validating OPENAI_API_KEY")
+        self._logger.debug("Validating %s", API_KEY_ENV_VAR)
 
-        api_key = self._get_env("OPENAI_API_KEY")
+        api_key = self._get_env(API_KEY_ENV_VAR)
         if not api_key:
-            error_msg = "Missing OPENAI_API_KEY. Set it in your .env file."
+            error_msg = f"Missing {API_KEY_ENV_VAR}. Set it in your .env file."
             self._logger.error(error_msg)
             raise ApiKeyMissingError(error_msg)
 
-        self._logger.debug("OPENAI_API_KEY found")
+        self._logger.debug("%s found", API_KEY_ENV_VAR)
 
     # --- Internal helpers ---
     def _build_messages(
