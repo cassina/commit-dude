@@ -132,7 +132,28 @@ class CommitDudeCLI:
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option("--debug", is_flag=True, help="Enable debug logging")
 def main(debug: bool) -> None:
-    """Generate commit messages from staged changes or piped diffs."""
+    """Generate commit messages from staged changes or piped diffs.
+
+    \b
+    Workflow:
+      1. When run without piped input, Commit Dude calls:
+         - git diff HEAD
+         - git status --porcelain
+         and combines their output.
+      2. When diff text is piped to stdin, that input is used instead of git.
+      3. The generated commit message is printed and copied to the clipboard.
+
+    Usage:
+      commit-dude [--debug]
+      git diff --staged | commit-dude
+
+    Options:
+      --debug         Enable debug logging for troubleshooting.
+      -h, --help      Show this message and exit.
+
+    Environment:
+      Provide an OPENAI_API_KEY via environment variable or a .env file.
+    """
     if debug:
         set_commit_dude_log_level("DEBUG")
         logger.debug("Debug logging enabled via --debug flag")
