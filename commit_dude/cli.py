@@ -129,9 +129,10 @@ class CommitDudeCLI:
         )
 
 
-@click.command()
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option("--debug", is_flag=True, help="Enable debug logging")
 def main(debug: bool) -> None:
+    """Generate commit messages from staged changes or piped diffs."""
     if debug:
         set_commit_dude_log_level("DEBUG")
         logger.debug("Debug logging enabled via --debug flag")
