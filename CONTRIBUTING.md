@@ -1,5 +1,13 @@
 # Contributing to Commit Dude
 
+## Important for Agents and LLM's
+- You must use the `Makefile` commands instead of directly using `uv` commands. If the command you need is not available, please create it in the `Makefile`.
+- You must run `make install` and make sure all tests pass before submitting a PR.
+- You must run `make build` and make sure all tests pass before submitting a PR.
+- You must run `make test` and make sure all tests pass before submitting a PR.
+- You must run `make format` and make sure all tests pass before submitting a PR (this command refactors files automatically).
+- You should never skip tests but fix them following the best practices unless explicitly stated by the user.
+
 ## 📋 Prerequisites
 - Python 3.10+
 - [uv](https://github.com/astral-sh/uv)
@@ -192,7 +200,5 @@ pip install dist/commit_dude-0.1.2.tar.gz
 This helps catch missing package data that might not appear when testing only the wheel.
 
 ---
-
-By following this sequence guarantees that the **exact artifacts** you plan to upload to **PyPI** have already been installed and exercised in isolation — mirroring your users’ experience.
 
 
