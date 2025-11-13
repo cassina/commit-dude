@@ -135,10 +135,9 @@ class CommitDudeCLI:
 def main(debug: bool) -> None:
     if debug:
         os.environ["COMMIT_DUDE_LOG_LEVEL"] = "DEBUG"
-        # 🔥 THIS FORCES THE LOGGER TO UPDATE
-        logger.setLevel("DEBUG")
-        for handler in logger.handlers:
-            handler.setLevel("DEBUG")
+        global logger
+        logger = commit_dude_logger(__name__)
+        logger.debug("Debug logging enabled via --debug flag")
 
     cli = CommitDudeCLI()
     sys.exit(cli.run())
