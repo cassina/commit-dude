@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """Module for managing commit message generation using OpenAI's LLM."""
 
+import logging
 import os
-from typing import List, Type, Optional, Union, Callable
+from typing import Callable, List, Optional, Type, Union
 
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -19,8 +20,6 @@ from commit_dude.errors import TokenLimitExceededError, ApiKeyMissingError
 
 # Load .env automatically
 load_dotenv()
-# Setup logger
-logger = commit_dude_logger(__name__)
 
 
 class ChatCommitDude:
@@ -50,6 +49,7 @@ class ChatCommitDude:
         get_env: Callable[[str], Optional[str]] = os.getenv,
         max_tokens: int = MAX_TOKENS,
         validate_api_key: bool = True,
+        logger: Optional[logging.Logger] = None,
     ) -> None:
         """Initialize ChatCommitDude with configuration and dependencies.
 
@@ -65,7 +65,9 @@ class ChatCommitDude:
         Raises:
             ApiKeyMissingError: If OPENAI_API_KEY is not found and validation enabled.
         """
-        logger.debug("Initializing ChatCommitDude with model: %s", model)
+        self._logger = logger or commit_dude_logger(__name__)
+
+        self._logger.debug("Initializing ChatCommitDude with model: %s", model)
 
         self.model = model
         self.output = output
@@ -93,13 +95,13 @@ class ChatCommitDude:
             TokenLimitExceededError: If diff exceeds token limit.
             Exception: If commit message generation fails.
         """
-        logger.debug("Starting commit message generation")
-        logger.debug("Diff length: %d characters", len(diff))
+        self._logger.debug("Starting commit message generation")
+        self._logger.debug("Diff length: %d characters", len(diff))
 
         self._validate_num_tokens(diff)
         result = self._generate_commit_message(diff)
 
-        logger.debug("Commit message generation completed successfully")
+        self._logger.debug("Commit message generation completed successfully")
         return result
 
     # --- Private methods ---
@@ -115,10 +117,10 @@ class ChatCommitDude:
         Raises:
             TokenLimitExceededError: If diff exceeds maximum token limit.
         """
-        logger.debug("Validating token count for diff")
+        self._logger.debug("Validating token count for diff")
 
         num_tokens = self.llm.get_num_tokens(diff)
-        logger.debug(
+        self._logger.debug(
             "Diff token count: %d (max allowed: %d)", num_tokens, self.max_tokens
         )
 
@@ -127,10 +129,10 @@ class ChatCommitDude:
                 f"Diff is too long. Max tokens: {self.max_tokens}, "
                 f"diff tokens: {num_tokens}"
             )
-            logger.error(error_msg)
+            self._logger.error(error_msg)
             raise TokenLimitExceededError(error_msg)
 
-        logger.debug("Token count validation passed")
+        self._logger.debug("Token count validation passed")
         return num_tokens
 
     def _generate_commit_message(self, diff: str) -> CommitMessageResponse:
@@ -145,16 +147,20 @@ class ChatCommitDude:
         Raises:
             Exception: If LLM invocation fails.
         """
-        logger.debug("Generating commit message from diff via structured LLM")
+        self._logger.debug("Generating commit message from diff via structured LLM")
 
         messages = self._build_messages(diff)
 
         try:
             result = self.structured_llm.invoke(messages)
-            logger.debug("Successfully generated commit message")
+            self._logger.debug("Successfully generated commit message")
             return result
         except Exception as e:
-            logger.error("Failed to generate commit message: %s", str(e), exc_info=True)
+            self._logger.error(
+                "Failed to generate commit message: %s",
+                str(e),
+                exc_info=True,
+            )
             raise
 
     def _build_model(self) -> ChatOpenAI:
@@ -163,10 +169,10 @@ class ChatCommitDude:
         Returns:
             Configured ChatOpenAI instance.
         """
-        logger.debug("Building ChatOpenAI model with name: %s", self.model)
+        self._logger.debug("Building ChatOpenAI model with name: %s", self.model)
 
         llm = ChatOpenAI(model=self.model, temperature=self.DEFAULT_TEMPERATURE)
-        logger.debug(
+        self._logger.debug(
             "Using LLM: %s with temperature: %.1f",
             llm.model_name,
             self.DEFAULT_TEMPERATURE,
@@ -179,12 +185,12 @@ class ChatCommitDude:
         Returns:
             Runnable with structured output configuration.
         """
-        logger.debug(
+        self._logger.debug(
             "Building structured LLM with output schema: %s", self.output.__name__
         )
 
         structured_llm = self.llm.with_structured_output(self.output)
-        logger.debug("Structured LLM configured successfully")
+        self._logger.debug("Structured LLM configured successfully")
         return structured_llm
 
     def _validate_api_key(self) -> None:
@@ -193,20 +199,19 @@ class ChatCommitDude:
         Raises:
             ApiKeyMissingError: If OPENAI_API_KEY is not found.
         """
-        logger.debug("Validating OPENAI_API_KEY")
+        self._logger.debug("Validating OPENAI_API_KEY")
 
         api_key = self._get_env("OPENAI_API_KEY")
         if not api_key:
             error_msg = "Missing OPENAI_API_KEY. Set it in your .env file."
-            logger.error(error_msg)
+            self._logger.error(error_msg)
             raise ApiKeyMissingError(error_msg)
 
-        logger.debug("OPENAI_API_KEY found")
+        self._logger.debug("OPENAI_API_KEY found")
 
-    # --- Static methods ---
-    @staticmethod
+    # --- Internal helpers ---
     def _build_messages(
-        diff: str, system_prompt: str = SYSTEM_PROMPT
+        self, diff: str, system_prompt: str = SYSTEM_PROMPT
     ) -> List[BaseMessage]:
         """Build message list for LLM from diff and system prompt.
 
@@ -217,7 +222,7 @@ class ChatCommitDude:
         Returns:
             List of BaseMessage instances for LLM input.
         """
-        logger.debug("Building messages for diff (length: %d chars)", len(diff))
+        self._logger.debug("Building messages for diff (length: %d chars)", len(diff))
 
         messages = [
             SystemMessage(content=system_prompt),
@@ -226,7 +231,7 @@ class ChatCommitDude:
             ),
         ]
 
-        logger.debug("Created %d messages", len(messages))
+        self._logger.debug("Created %d messages", len(messages))
         return messages
 
     # --- Dunder methods ---
