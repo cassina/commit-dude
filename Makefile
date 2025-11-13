@@ -22,7 +22,7 @@ publish:
 	uv publish
 
 test-local:
-	uv run python -m commit_dude
+	uv run python -m commit_dude --debug
 
 clean:
 	rm -rf dist/ build/ *.egg-info
