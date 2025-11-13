@@ -32,7 +32,7 @@ class _LevelStyle:
     def render(self, message: str) -> str:
         """Decorate *message* with the configured ANSI styles."""
 
-        prefix = f"[{self.label}]"
+        prefix = f"[🐛 {self.label}]"
         modifiers: list[str] = []
 
         if self.bold:
@@ -47,7 +47,7 @@ class _LevelStyle:
 
 _LEVEL_STYLES: Final[dict[int, _LevelStyle]] = {
     logging.DEBUG: _LevelStyle("DEBUG", _rgb_escape(110, 246, 223), dim=True),
-    logging.INFO: _LevelStyle("INFO", _rgb_escape(118, 245, 249)),
+    logging.INFO: _LevelStyle("INFO", _rgb_escape(91, 203, 255)),
     logging.WARNING: _LevelStyle(
         "WARNING",
         _rgb_escape(193, 255, 185),
