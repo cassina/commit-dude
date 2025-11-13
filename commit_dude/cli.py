@@ -1,5 +1,4 @@
 """Command-line interface for Commit Dude."""
-import os
 import sys
 import subprocess
 from typing import Callable, Optional, Sequence, TextIO
@@ -9,7 +8,7 @@ import pyperclip
 
 from commit_dude.llm import ChatCommitDude
 from commit_dude.schemas import CommitMessageResponse
-from commit_dude.settings import commit_dude_logger
+from commit_dude.settings import commit_dude_logger, set_commit_dude_log_level
 
 logger = commit_dude_logger(__name__)
 
@@ -134,9 +133,7 @@ class CommitDudeCLI:
 @click.option("--debug", is_flag=True, help="Enable debug logging")
 def main(debug: bool) -> None:
     if debug:
-        os.environ["COMMIT_DUDE_LOG_LEVEL"] = "DEBUG"
-        global logger
-        logger = commit_dude_logger(__name__)
+        set_commit_dude_log_level("DEBUG")
         logger.debug("Debug logging enabled via --debug flag")
 
     cli = CommitDudeCLI()
