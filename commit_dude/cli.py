@@ -1,5 +1,5 @@
 """Command-line interface for Commit Dude."""
-
+import os
 import sys
 import subprocess
 from typing import Callable, Optional, Sequence, TextIO
@@ -75,10 +75,15 @@ class CommitDudeCLI:
         diff_output = self._run_git_command(["git", "diff", "HEAD"])
         status_output = self._run_git_command(["git", "status", "--porcelain"])
 
+        logger.debug(f"diff output: {diff_output}")
+        logger.debug(f"status output: {status_output}")
+
         combined = "\n".join(
             part for part in [diff_output, status_output] if part
         ).strip()
         logger.debug("Combined diff length: %d", len(combined))
+
+        logger.debug("Combined diff: %s", combined)
         return combined
 
     def _run_git_command(self, args: Sequence[str]) -> str:
@@ -126,11 +131,18 @@ class CommitDudeCLI:
 
 
 @click.command()
-def main() -> None:
-    """Entry point used by the console script."""
+@click.option("--debug", is_flag=True, help="Enable debug logging")
+def main(debug: bool) -> None:
+    if debug:
+        os.environ["COMMIT_DUDE_LOG_LEVEL"] = "DEBUG"
+        # 🔥 THIS FORCES THE LOGGER TO UPDATE
+        logger.setLevel("DEBUG")
+        for handler in logger.handlers:
+            handler.setLevel("DEBUG")
 
     cli = CommitDudeCLI()
     sys.exit(cli.run())
+
 
 
 if __name__ == "__main__":

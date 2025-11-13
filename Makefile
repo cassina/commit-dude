@@ -7,7 +7,7 @@ run:
 	uv run commit-dude
 
 test:
-	uv run pytest -s --log-cli-level=DEBUG tests/
+	uv run pytest -s --log-cli-level=DEBUG tests/unit/
 
 lint:
 	uv run ruff check .

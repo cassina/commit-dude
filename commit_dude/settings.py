@@ -1,4 +1,5 @@
 import logging
+import os
 
 
 class CommitDudeFormatter(logging.Formatter):
@@ -38,5 +39,23 @@ class CommitDudeFormatter(logging.Formatter):
 
 
 # Configure logger
-def commit_dude_logger(file_name):
-    return logging.getLogger(file_name)
+def commit_dude_logger(name: str):
+    """Create a preconfigured logger with colors and dynamic log levels."""
+    logger = logging.getLogger(name)
+
+    if not logger.handlers:  # Prevent adding multiple handlers
+        level = os.getenv("COMMIT_DUDE_LOG_LEVEL", "INFO").upper()
+
+        logger.setLevel(level)
+
+        handler = logging.StreamHandler()
+        handler.setLevel(level)
+        handler.setFormatter(
+            CommitDudeFormatter("%(message)s")
+        )
+
+        logger.addHandler(handler)
+
+    return logger
+# def commit_dude_logger(file_name):
+#     return logging.getLogger(file_name)
