@@ -8,6 +8,9 @@ from dataclasses import dataclass
 from typing import Final
 
 
+_REGISTERED_LOGGERS: set[logging.Logger] = set()
+
+
 _DEFAULT_FORMAT: Final[str] = "%(message)s"
 _RESET: Final[str] = "\033[0m"
 _BOLD: Final[str] = "\033[1m"
@@ -89,6 +92,19 @@ def _parse_level_from_env() -> int | None:
     return getattr(logging, level_name.upper(), None)
 
 
+def _effective_level() -> int:
+    """Return the currently configured log level or NOTSET when undefined."""
+
+    level = _parse_level_from_env()
+    return level if level is not None else logging.NOTSET
+
+
+def _register(logger: logging.Logger) -> None:
+    """Keep track of configured loggers for later reconfiguration."""
+
+    _REGISTERED_LOGGERS.add(logger)
+
+
 def commit_dude_logger(name: str) -> logging.Logger:
     """Return a pre-configured logger with Commit Dude's signature styling."""
 
@@ -100,7 +116,17 @@ def commit_dude_logger(name: str) -> logging.Logger:
         handler.setLevel(logging.NOTSET)
         logger.addHandler(handler)
 
-    level = _parse_level_from_env()
-    logger.setLevel(level if level is not None else logging.NOTSET)
+    logger.setLevel(_effective_level())
+    _register(logger)
 
     return logger
+
+
+def set_commit_dude_log_level(level_name: str) -> None:
+    """Set the log level for all Commit Dude loggers."""
+
+    os.environ["COMMIT_DUDE_LOG_LEVEL"] = level_name
+    level = _effective_level()
+
+    for logger in _REGISTERED_LOGGERS:
+        logger.setLevel(level)
