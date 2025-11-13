@@ -1,4 +1,5 @@
 """Command-line interface for Commit Dude."""
+
 import sys
 import subprocess
 from typing import Callable, Optional, Sequence, TextIO
@@ -6,6 +7,7 @@ from typing import Callable, Optional, Sequence, TextIO
 import click
 import pyperclip
 
+from commit_dude.errors import ApiKeyMissingError, TokenLimitExceededError
 from commit_dude.llm import ChatCommitDude
 from commit_dude.schemas import CommitMessageResponse
 from commit_dude.settings import commit_dude_logger, set_commit_dude_log_level
@@ -54,9 +56,23 @@ class CommitDudeCLI:
 
         try:
             commit_response = self._create_commit_dude().invoke(diff)
-        except Exception as exc:  # pragma: no cover - surface helpful message
+        except TokenLimitExceededError:
+            logger.error("Diff exceeds token limit", exc_info=True)
+            self._echo_err(
+                "❌ Diff is too large to process. Please reduce the scope of your changes and try again."
+            )
+            return 1
+        except ApiKeyMissingError:
+            logger.error("Missing OpenAI API key", exc_info=True)
+            self._echo_err(
+                "❌ Missing OpenAI API key. Set OPENAI_API_KEY or update your .env file before retrying."
+            )
+            return 1
+        except Exception:
             logger.exception("Failed to generate commit message")
-            self._echo_err(f"❌ Failed to generate commit message: {exc}")
+            self._echo_err(
+                "❌ An unexpected error occurred while generating the commit message. Run with --debug for more details."
+            )
             return 1
 
         self._display_commit(commit_response)
@@ -160,7 +176,6 @@ def main(debug: bool) -> None:
 
     cli = CommitDudeCLI()
     sys.exit(cli.run())
-
 
 
 if __name__ == "__main__":
