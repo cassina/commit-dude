@@ -16,7 +16,7 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --locked
+        run: make install
 
       - name: Run tests
-        run: uv run pytest -s --log-cli-level=DEBUG tests/
+        run: make test
