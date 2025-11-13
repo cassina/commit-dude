@@ -116,7 +116,9 @@ def commit_dude_logger(name: str) -> logging.Logger:
         handler.setLevel(logging.NOTSET)
         logger.addHandler(handler)
 
-    logger.setLevel(_effective_level())
+    env_level = _parse_level_from_env()
+    if env_level is not None:
+        logger.setLevel(env_level)
     _register(logger)
 
     return logger
