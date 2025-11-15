@@ -6,6 +6,9 @@ import logging
 import os
 from typing import Callable, List, Optional, Type, Union
 
+from langchain.agents import create_agent
+from langchain.agents.middleware import PIIMiddleware
+
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -13,6 +16,7 @@ from langchain_core.runnables import Runnable
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage
 
+from commit_dude.pattern_detector_middleware import SecretPatternDetectorMiddleware
 from commit_dude.schemas import CommitMessageResponse
 from commit_dude.config import SYSTEM_PROMPT, MAX_TOKENS
 from commit_dude.settings import commit_dude_logger
