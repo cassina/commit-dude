@@ -5,8 +5,9 @@
 - You must run `make install` and make sure all tests pass before submitting a PR.
 - You must run `make build` and make sure all tests pass before submitting a PR.
 - You must run `make test` and make sure all tests pass before submitting a PR.
-- You must run `make format` and make sure all tests pass before submitting a PR (this command refactors files automatically).
 - You should never skip tests but fix them following the best practices unless explicitly stated by the user.
+- You must run `make format` and make sure all tests pass before submitting a PR (this command refactors files automatically).
+- You must use `make run` to get your commit message, this will actually run the Commit Dude CLI so it is a way to also test it out.
 
 ## 📋 Prerequisites
 - Python 3.10+
