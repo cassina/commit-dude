@@ -1,6 +1,4 @@
-"""Allow package to be run as python -m commit_dude"""
-
-from commit_dude.cli import main
+from commit_dude.cli import run_commit_dude
 
 if __name__ == "__main__":
-    main()
+    run_commit_dude()

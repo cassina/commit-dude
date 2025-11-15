@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-commit-dude = "commit_dude.cli:main"
+commit-dude = "commit_dude.cli:run_commit_dude"
 
 [build-system]
 requires = ["hatchling"]

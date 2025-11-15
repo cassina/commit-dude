@@ -15,9 +15,10 @@ from commit_dude.settings import set_commit_dude_log_level
 
 set_commit_dude_log_level("DEBUG")
 
+
 class CommitDudeAgent:
     def __init__(
-        self, model_name: str = "gpt-5-nano", logger: Optional[logging.Logger] = None
+        self, model_name: str = "gpt-5-mini", logger: Optional[logging.Logger] = None
     ) -> None:
         self._logger = logger or commit_dude_logger(__name__)
         self._max_tokens = MAX_TOKENS
@@ -28,7 +29,7 @@ class CommitDudeAgent:
             response_format=ProviderStrategy(CommitMessageResponse),
         )
 
-    def invoke(self, diff: str) -> CommitMessageResponse:
+    def invoke(self, diff: str):
         self._logger.debug("Starting commit message generation")
         self._logger.debug("Diff length: %d characters", len(diff))
         input = f"User input:\n{diff}"
@@ -37,7 +38,6 @@ class CommitDudeAgent:
         self._validate_num_tokens(diff)
 
         result = self._agent.invoke({"messages": [HumanMessage(content=diff)]})
-
         self._logger.debug("Commit message generation completed successfully")
         return result
 
