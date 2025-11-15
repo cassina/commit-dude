@@ -1,53 +1,182 @@
+"""Command-line interface for Commit Dude."""
+
 import sys
 import subprocess
+from typing import Callable, Optional, Sequence, TextIO
+
 import click
 import pyperclip
+
+from commit_dude.errors import ApiKeyMissingError, TokenLimitExceededError
+from commit_dude.llm import ChatCommitDude
 from commit_dude.schemas import CommitMessageResponse
-from langchain_core.messages import ToolMessage
+from commit_dude.settings import commit_dude_logger, set_commit_dude_log_level
 
-from .llm import generate_commit_message
+logger = commit_dude_logger(__name__)
 
 
-@click.command()
-def main():
-    if not sys.stdin.isatty():
-        diff = sys.stdin.read().strip()
-    else:
-        cmd = cmd = ["git", "diff", "HEAD"]
-        diff = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True
-        ).stdout.strip()
+class CommitDudeCLI:
+    """Handle diff collection and commit message generation for the CLI."""
 
-        status = subprocess.run(
-            ["git", "status", "--porcelain"],
-            capture_output=True,
-        ).stdout.strip()
+    def __init__(
+        self,
+        stdin: TextIO = sys.stdin,
+        run_process: Optional[
+            Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
+        ] = None,
+        llm_factory: Callable[[], ChatCommitDude] = ChatCommitDude,
+        clipboard_copy: Callable[[str], None] = pyperclip.copy,
+        echo: Callable[..., None] = click.echo,
+        echo_err: Optional[Callable[[str], None]] = None,
+        isatty: Optional[Callable[[], bool]] = None,
+    ) -> None:
+        """Create a CLI handler with injectable dependencies for easy testing."""
 
-        diff += f"\n {status}"
+        self._stdin = stdin
+        self._run_process = run_process or self._default_run_process
+        self._llm_factory = llm_factory
+        self._clipboard_copy = clipboard_copy
+        self._echo = echo
+        self._echo_err = echo_err or (lambda message: self._echo(message, err=True))
+        self._isatty = isatty or stdin.isatty
 
-    if not diff:
-        click.echo("❌ No changes detected. Add or modify files first.", err=True)
-        sys.exit(1)
+    # --- Public API -----------------------------------------------------
+    def run(self) -> int:
+        """Execute the CLI workflow and return an exit code."""
 
-    click.echo("🤖 Generating commit message...")
+        logger.debug("Starting CLI run")
+        diff = self._read_diff()
 
-    response = generate_commit_message(diff)
+        if not diff:
+            logger.warning("No diff detected")
+            self._echo_err("--- ❌ No changes detected. Add or modify files first. ---")
+            return 1
 
-    try:
-        commit_response: CommitMessageResponse = response["structured_response"]
+        self._echo("🤖 Generating commit message...")
+
+        try:
+            commit_response = self._create_commit_dude().invoke(diff)
+        except TokenLimitExceededError:
+            logger.error("Diff exceeds token limit", exc_info=True)
+            self._echo_err(
+                "❌ Diff is too large to process. Please reduce the scope of your changes and try again."
+            )
+            return 1
+        except ApiKeyMissingError:
+            logger.error("Missing OpenAI API key", exc_info=True)
+            self._echo_err(
+                "❌ Missing OpenAI API key. Set OPENAI_API_KEY or update your .env file before retrying."
+            )
+            return 1
+        except Exception:
+            logger.exception("Failed to generate commit message")
+            self._echo_err(
+                "❌ An unexpected error occurred while generating the commit message. Run with --debug for more details."
+            )
+            return 1
+
+        self._display_commit(commit_response)
+        return 0
+
+    # --- Internal helpers ----------------------------------------------
+    def _read_diff(self) -> str:
+        """Read a diff from stdin or git commands."""
+
+        if not self._isatty():
+            logger.debug("Reading diff from stdin")
+            return self._stdin.read().strip()
+
+        logger.debug("Collecting diff using git commands")
+        diff_output = self._run_git_command(["git", "diff", "HEAD"])
+        status_output = self._run_git_command(["git", "status", "--porcelain"])
+
+        logger.debug(f"diff output: {diff_output}")
+        logger.debug(f"status output: {status_output}")
+
+        combined = "\n".join(
+            part for part in [diff_output, status_output] if part
+        ).strip()
+        logger.debug("Combined diff length: %d", len(combined))
+
+        logger.debug("Combined diff: %s", combined)
+        return combined
+
+    def _run_git_command(self, args: Sequence[str]) -> str:
+        """Execute a git command and return its trimmed stdout."""
+
+        logger.debug("Running command: %s", " ".join(args))
+        result = self._run_process(args)
+        stdout = result.stdout.strip()
+        logger.debug("Command output length: %d", len(stdout))
+        return stdout
+
+    def _create_commit_dude(self) -> ChatCommitDude:
+        """Instantiate the language model helper."""
+
+        logger.debug("Creating ChatCommitDude instance via factory")
+        return self._llm_factory()
+
+    def _display_commit(self, commit_response: CommitMessageResponse) -> None:
+        """Display the generated commit message and copy it to the clipboard."""
+
         commit_msg = commit_response.commit_message
         agent_response = commit_response.agent_response
 
-        click.echo(agent_response)
-        click.echo(commit_msg)
+        logger.debug("Displaying agent response and commit message")
+        self._echo(agent_response)
+        self._echo(commit_msg)
 
-        pyperclip.copy(commit_msg)
-        click.echo("\n✅ Suggested commit message copied to clipboard. \n")
-    except Exception as e:
-        print(f"O shit! {e}")
+        logger.debug("Copying commit message to clipboard")
+        self._clipboard_copy(commit_msg)
+        self._echo("\n✅ Suggested commit message copied to clipboard. \n")
 
-    # Clean and copy only the commit msg to clipboard
-    # clean_message = message.replace("\n", " ").replace("\r", "").strip('`')
+    # --- Static helpers -------------------------------------------------
+    @staticmethod
+    def _default_run_process(
+        args: Sequence[str],
+    ) -> subprocess.CompletedProcess[str]:
+        """Execute a subprocess with standard CLI defaults."""
 
+        return subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
+@click.option("--debug", is_flag=True, help="Enable debug logging")
+def main(debug: bool) -> None:
+    """Generate commit messages from staged changes or piped diffs.
+
+    \b
+    Workflow:
+      1. When run without piped input, Commit Dude calls:
+         - git diff HEAD
+         - git status --porcelain
+         and combines their output.
+      2. When diff text is piped to stdin, that input is used instead of git.
+      3. The generated commit message is printed and copied to the clipboard.
+
+    Usage:
+      commit-dude [--debug]
+      git diff --staged | commit-dude
+
+    Options:
+      --debug         Enable debug logging for troubleshooting.
+      -h, --help      Show this message and exit.
+
+    Environment:
+      Provide an OPENAI_API_KEY via environment variable or a .env file.
+    """
+    if debug:
+        set_commit_dude_log_level("DEBUG")
+        logger.debug("Debug logging enabled via --debug flag")
+
+    cli = CommitDudeCLI()
+    sys.exit(cli.run())
+
+
+if __name__ == "__main__":
+    main()

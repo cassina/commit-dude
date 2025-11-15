@@ -1,25 +1,63 @@
 # Commit Dude 🧠🤖
 
-A simple CLI tool that generates **Conventional Commit messages** from your git diffs using LangChain + OpenAI — and automatically copies them to your clipboard.
+Commit Dude is a friendly command line helper that turns your staged or working tree changes into polished
+[Conventional Commit](https://www.conventionalcommits.org/) messages.
 
----
+## ✨ Features
+- Generates Conventional Commit compliant messages from any git diff.
+- Automatically includes `git status --porcelain` output for additional context.
+- Copies the suggested message to your clipboard using `pyperclip`.
+- Works as a standalone CLI (`commit-dude`) or through `python -m commit_dude`.
 
-## 🚀 Installation
+## 📦 Requirements
+- Python 3.10 or newer.
+- [uv](https://github.com/astral-sh/uv) for dependency management and packaging.
+- An OpenAI API key with access to the `gpt-4o-mini` model (set as `OPENAI_API_KEY`).
 
-Using [uv](https://github.com/astral-sh/uv):
+## ⚙️ Installation
+```bash
+uv add commit-dude
+```
+
+## 🔑 Configuration
+You must have an OpenAI API key in your environment.
 
 ```bash
-make install
+OPENAI_API_KEY="sk-..."
+```
+
+## 🚀 Usage
+
+```bash
+uv run commit-dude
 ```
 
 ```bash
-make build
+git diff | uv run commit-dude
 ```
 
+The output will be similar to:
 ```bash
-make test-local
+🤖 Generating commit message...
+Hey there! Here’s a chill commit message for you: 
+
+docs: add AGENTS.md and update CONTRIBUTING.md
+
+- Added AGENTS.md to remind contributors to read the CONTRIBUTING.md file.
+- Updated various sections in CONTRIBUTING.md for clarity and accuracy.
+- Modified Makefile to sync dependencies with locked versions.
+- Cleaned up README.md for better readability and updated usage instructions.
+
+✅ Suggested commit message copied to clipboard. 
 ```
 
-```bash
-make run
-```
+The CLI will:
+1. Capture the diff of your working tree against `HEAD`.
+2. Send the diff (plus `git status --porcelain` output) to the LLM.
+3. Print the conversational response and commit message.
+4. Copy the final commit message to your clipboard.
+5. If there are no changes, Commit Dude exits with a helpful error message.
+
+
+## 🧑‍💻 Contributing
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines, commit conventions, and release steps.

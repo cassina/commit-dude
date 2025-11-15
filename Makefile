@@ -1,10 +1,19 @@
 # Simple Makefile for Commit Dude
 
 install:
-	uv sync
+	uv sync --locked
 
 run:
 	uv run commit-dude
+
+test:
+	uv run pytest -s --log-cli-level=DEBUG tests/unit/
+
+lint:
+	uv run ruff check .
+
+format:
+	uv run ruff format .
 
 build:
 	uv build
@@ -13,7 +22,7 @@ publish:
 	uv publish
 
 test-local:
-	uv run python -m commit_dude
+	uv run python -m commit_dude --debug
 
 clean:
 	rm -rf dist/ build/ *.egg-info
