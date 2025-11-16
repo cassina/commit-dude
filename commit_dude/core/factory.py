@@ -42,7 +42,6 @@ class CommitDudeAgent:
             middleware=self._middleware,
         )
 
-
     def invoke(self, diff: str) -> dict:
         self._logger.debug("Starting diff processing")
 
