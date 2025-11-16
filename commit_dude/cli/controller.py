@@ -4,10 +4,10 @@ from typing import Callable, Optional
 import click
 import pyperclip
 
-from commit_dude.schemas import CommitMessageResponse
-from commit_dude.settings import commit_dude_logger
-from commit_dude.errors import TokenLimitExceededError
-from commit_dude.errors import SecretPatternDetectorError
+from commit_dude.core.schemas import CommitMessageResponse
+from commit_dude.core.settings import commit_dude_logger
+from commit_dude.core.errors import TokenLimitExceededError
+from commit_dude.core.errors import SecretPatternDetectorError
 
 from .service import CommitDudeService
 

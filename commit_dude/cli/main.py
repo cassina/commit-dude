@@ -2,7 +2,7 @@ import sys
 
 import click
 
-from commit_dude.settings import set_commit_dude_log_level
+from commit_dude.core.settings import set_commit_dude_log_level
 from commit_dude.core.factory import CommitDudeAgent
 
 from .service import CommitDudeService

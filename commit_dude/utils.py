@@ -1,7 +1,7 @@
 import textwrap
 from typing import List
 
-from commit_dude.config import COMMIT_LINE_LENGTH
+from commit_dude.core.config import COMMIT_LINE_LENGTH
 
 BULLET_PREFIXES = ("- ", "* ", "+ ")
 
