@@ -1,14 +1,17 @@
+import logging
 import re
 import time
-import yaml
-import logging
+from importlib import resources
+from importlib.abc import Traversable
 from pathlib import Path
-from typing import List, Union, Optional
+from typing import List, Optional, Union
+
+import yaml
 
 from langchain.agents import AgentState
-from langchain_core.messages import BaseMessage
 from langchain.agents.middleware import AgentMiddleware
 from langchain.agents.middleware.types import hook_config
+from langchain_core.messages import BaseMessage
 from langgraph.runtime import Runtime
 
 from commit_dude.core.config import REDACTION
@@ -23,9 +26,7 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
     def __init__(
         self,
         logger: Optional[logging.Logger] = None,
-        patterns_yaml_path: Union[
-            str, Path
-        ] = "commit_dude/core/files/rules-stable.yml",
+        patterns_yaml_path: Optional[Union[str, Path, Traversable]] = None,
         confidence_threshold: float = 0.5,
         strategy: Strategy = "block",
     ):
@@ -34,9 +35,17 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
         self.patterns = self._load_patterns(patterns_yaml_path)
         self.compiled = self._compile_patterns(self.patterns, confidence_threshold)
 
-    @staticmethod
-    def _load_patterns(yaml_path):
-        with open(yaml_path, "r", encoding="utf-8") as f:
+    def _default_patterns_path(self) -> Traversable:
+        return resources.files("commit_dude.core.files").joinpath("rules-stable.yml")
+
+    def _load_patterns(self, yaml_path: Optional[Union[str, Path, Traversable]]):
+        pattern_path: Traversable
+        if yaml_path:
+            pattern_path = Path(yaml_path)
+        else:
+            pattern_path = self._default_patterns_path()
+
+        with pattern_path.open("r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
         return data.get("patterns", [])
 
