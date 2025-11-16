@@ -1,7 +1,9 @@
 import logging
+import os
 from time import perf_counter
 from typing import Optional, Dict, Any, Sequence
 
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage
@@ -9,6 +11,7 @@ from langchain.agents.structured_output import ProviderStrategy
 
 from commit_dude.core.config import MAX_TOKENS
 from commit_dude.core.config import SYSTEM_PROMPT
+from commit_dude.core.errors import ApiKeyMissingError
 from commit_dude.core.settings import commit_dude_logger
 from commit_dude.core.schemas import CommitMessageResponse, Strategy
 from commit_dude.core.middleware import SecretPatternDetectorMiddleware, CommitLengthMiddleware, TokenCountMiddleware
@@ -26,6 +29,8 @@ class CommitDudeAgent:
         self._max_tokens = MAX_TOKENS
         self._strict = strict
         self._strategy: Strategy = "block" if strict else "redact"
+
+        self._ensure_api_key()
 
         # Set Agent configuration
         self._model = ChatOpenAI(model=model_name, temperature=0.5)
@@ -73,6 +78,20 @@ class CommitDudeAgent:
 
         # Return a NEW dict to avoid side effects
         return structured
+
+    def _ensure_api_key(self) -> str:
+        load_dotenv()
+        api_key = os.getenv("OPENAI_API_KEY")
+
+        if not api_key:
+            error_message = (
+                "Missing OpenAI API key. Set OPENAI_API_KEY in your environment or .env file."
+            )
+            self._logger.error(error_message)
+            raise ApiKeyMissingError(error_message)
+
+        self._logger.debug("OPENAI_API_KEY loaded successfully")
+        return api_key
 
 if __name__ == "__main__":
     agent = CommitDudeAgent(strict=False)
