@@ -5,14 +5,13 @@ from typing import Optional, TextIO, Sequence, Callable
 
 from commit_dude.schemas import CommitMessageResponse
 from commit_dude.core.factory import CommitDudeAgent
-from commit_dude.settings import commit_dude_logger, set_commit_dude_log_level
-
-set_commit_dude_log_level("DEBUG")
+from commit_dude.settings import commit_dude_logger
 
 
 class CommitDudeService:
     def __init__(
         self,
+        agent: CommitDudeAgent,
         logger: Optional[logging.Logger] = None,
         stdin: TextIO = sys.stdin,
         run_process: Optional[
@@ -24,7 +23,7 @@ class CommitDudeService:
         self._stdin = stdin
         self._isatty = isatty or stdin.isatty
         self._run_process = run_process or self._default_run_process
-        self.agent = CommitDudeAgent()
+        self.agent = agent
 
     # --- Public API ---
     def read_diff(self) -> str:
@@ -37,8 +36,8 @@ class CommitDudeService:
         diff_output = self._run_git_command(["git", "diff", "HEAD"])
         status_output = self._run_git_command(["git", "status", "--porcelain"])
 
-        self._logger.debug("diff output: %s", diff_output)
-        self._logger.debug("status output: %s", status_output)
+        # self._logger.debug("diff output: %s", diff_output)
+        # self._logger.debug("status output: %s", status_output)
 
         combined = "\n".join(
             part for part in [diff_output, status_output] if part

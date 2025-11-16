@@ -6,6 +6,12 @@ install:
 run:
 	uv run commit-dude
 
+run-no-strict:
+	uv run commit-dude --no-strict
+
+run-no-strict-debug:
+	uv run commit-dude --no-strict --debug
+
 test:
 	uv run pytest -s --log-cli-level=DEBUG tests/unit/
 
