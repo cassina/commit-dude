@@ -45,7 +45,7 @@ class CommitDudeController:
             return 0
         except SecretPatternDetectorError:
             self._echo_err(
-                f"Diff contains secret patterns. Blocking the request since strict mode is enabled."
+                "Diff contains secret patterns. Blocking the request since strict mode is enabled."
             )
             return 1
         except TokenLimitExceededError:
