@@ -7,8 +7,8 @@ from langchain.agents.middleware import AgentMiddleware
 from langgraph.runtime import Runtime
 
 from commit_dude.utils import wrap_commit_message
-from commit_dude.schemas import CommitMessageResponse
-from commit_dude.settings import commit_dude_logger
+from commit_dude.core.schemas import CommitMessageResponse
+from commit_dude.core.settings import commit_dude_logger
 
 
 class CommitLengthMiddleware(AgentMiddleware):

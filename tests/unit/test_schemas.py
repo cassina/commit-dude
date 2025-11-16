@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from commit_dude.schemas import CommitMessageResponse
+from commit_dude.core.schemas import CommitMessageResponse
 
 
 def test_commit_message_response_valid_payload():

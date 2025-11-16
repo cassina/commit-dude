@@ -4,7 +4,7 @@ from agentevals.trajectory.llm import (
     TRAJECTORY_ACCURACY_PROMPT,
 )
 from commit_dude.core.factory import CommitDudeAgent
-from commit_dude.settings import commit_dude_logger
+from commit_dude.core.settings import commit_dude_logger
 
 logger = commit_dude_logger(__name__)
 

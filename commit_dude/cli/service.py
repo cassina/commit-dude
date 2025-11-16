@@ -3,9 +3,9 @@ import subprocess
 import sys
 from typing import Optional, TextIO, Sequence, Callable
 
-from commit_dude.schemas import CommitMessageResponse
+from commit_dude.core.schemas import CommitMessageResponse
 from commit_dude.core.factory import CommitDudeAgent
-from commit_dude.settings import commit_dude_logger
+from commit_dude.core.settings import commit_dude_logger
 
 
 class CommitDudeService:
