@@ -11,7 +11,9 @@ from .controller import CommitDudeController
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option("--debug", is_flag=True, help="Enable debug logging")
-@click.option("--no-strict", is_flag=True, help="Enable 'redacted' commit generation strategy")
+@click.option(
+    "--no-strict", is_flag=True, help="Enable 'redacted' commit generation strategy"
+)
 def run_commit_dude(debug: bool, no_strict: bool = False):
     """Entry point for Commit Dude CLI."""
     if debug:
