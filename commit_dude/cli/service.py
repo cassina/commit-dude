@@ -27,30 +27,28 @@ class CommitDudeService:
 
     # --- Public API ---
     def read_diff(self) -> str:
-        if not self._isatty():
-            self._logger.debug("Reading diff from stdin")
-            return self._stdin.read().strip()
+        self._logger.debug("Collecting diff...")
 
-        self._logger.debug("Collecting diff using git commands")
+        if not self._isatty():
+            self._logger.debug("Reading diff from stdin...")
+            return self._stdin.read().strip()
 
         diff_output = self._run_git_command(["git", "diff", "HEAD"])
         status_output = self._run_git_command(["git", "status", "--porcelain"])
-
-        # self._logger.debug("diff output: %s", diff_output)
-        # self._logger.debug("status output: %s", status_output)
 
         combined = "\n".join(
             part for part in [diff_output, status_output] if part
         ).strip()
 
         self._logger.debug("Combined diff length: %d", len(combined))
-        # self._logger.debug("Combined diff: %s", combined)
 
         return combined
 
     def generate_commit(self, diff: str) -> CommitMessageResponse:
         try:
+            self._logger.debug("⛓️ Invoking Commit Dude agent...")
             result = self.agent.invoke(diff)
+            self._logger.debug("⛓️ Invocation completed successfully.")
             return result["structured_response"]
 
         except Exception as error:

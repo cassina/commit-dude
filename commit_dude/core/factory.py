@@ -34,15 +34,14 @@ class CommitDudeAgent:
         self._strict = strict
 
     def invoke(self, diff: str):
-        self._logger.debug("Starting diff validation")
-        self._logger.debug("Diff length: %d characters", len(diff))
-
+        self._logger.debug("Starting diff processing")
 
         # Validate approximate token count
         self._validate_num_tokens(diff)
 
         self._logger.debug("Starting commit message generation")
         result = self._agent.invoke({"messages": [HumanMessage(content=diff)]})
+
         self._logger.debug("Commit message generation completed successfully")
         return result
 
