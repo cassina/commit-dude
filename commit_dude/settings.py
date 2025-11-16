@@ -32,10 +32,10 @@ class _LevelStyle:
     bold: bool = False
     dim: bool = False
 
-    def render(self, message: str) -> str:
+    def render(self, message: str, logger_name: str) -> str:
         """Decorate *message* with the configured ANSI styles."""
 
-        prefix = f"[🐛 {self.label}]"
+        prefix = f"[🐛 {self.label}::{logger_name}]"
         modifiers: list[str] = []
 
         if self.bold:
@@ -79,7 +79,9 @@ class _ColorFormatter(logging.Formatter):
         if not style:
             return message
 
-        return style.render(message)
+        # Pass logger name to the style renderer
+        return style.render(message, record.name)
+
 
 
 def _parse_level_from_env() -> int | None:

@@ -11,14 +11,16 @@ from commit_dude.schemas import CommitMessageResponse
 from commit_dude.settings import commit_dude_logger
 from commit_dude.config import MAX_TOKENS
 from commit_dude.errors import TokenLimitExceededError
-from commit_dude.settings import set_commit_dude_log_level
-
-set_commit_dude_log_level("DEBUG")
+from commit_dude.core.middleware import SecretPatternDetectorMiddleware
 
 
 class CommitDudeAgent:
     def __init__(
-        self, model_name: str = "gpt-5-mini", logger: Optional[logging.Logger] = None
+            self,
+            logger: Optional[logging.Logger] = None,
+            model_name: str = "gpt-5-mini",
+            # model_name: str = "gpt-4o-mini",
+            strict: bool = True,
     ) -> None:
         self._logger = logger or commit_dude_logger(__name__)
         self._max_tokens = MAX_TOKENS
@@ -27,16 +29,19 @@ class CommitDudeAgent:
             model=self._model,
             system_prompt=SYSTEM_PROMPT,
             response_format=ProviderStrategy(CommitMessageResponse),
+            middleware=[SecretPatternDetectorMiddleware(strategy=f"{'block' if strict else 'redact'}")]
         )
+        self._strict = strict
 
     def invoke(self, diff: str):
-        self._logger.debug("Starting commit message generation")
+        self._logger.debug("Starting diff validation")
         self._logger.debug("Diff length: %d characters", len(diff))
-        input = f"User input:\n{diff}"
-        self._logger.debug("Input: %s", input)
 
+
+        # Validate approximate token count
         self._validate_num_tokens(diff)
 
+        self._logger.debug("Starting commit message generation")
         result = self._agent.invoke({"messages": [HumanMessage(content=diff)]})
         self._logger.debug("Commit message generation completed successfully")
         return result
@@ -62,11 +67,14 @@ class CommitDudeAgent:
 
 
 if __name__ == "__main__":
-    agent = CommitDudeAgent()
+    agent = CommitDudeAgent(strict=False)
     msg = (
-        "diff --git a/commit_dude/config.py b/commit_dude/config.py index eff3b66..71898b1 100644 --- a/commit_dude/config.py +++ b/commit_dude/config.py "
+        "diff --git a/commit_dude/config.py b/commit_dude/config.py "
+        "index eff3b66..71898b1 100644 --- a/commit_dude/config.py +++ b/commit_dude/config.py "
         "-SYSTEM_PROMPT = You are Git Commit Dude with a laid back and relaxed attitude, always chilling."
-        "+SYSTEM_PROMPT = +You are Git Commit Dude, a conventional commit generator, with a laid back and relaxed attitude, always chilling."
+        "+SYSTEM_PROMPT = +You are Git Commit Dude, a conventional commit generator, with a laid back and relaxed attitude, always chilling.\n"
+        "+F = 'FFF'"
     )
+
     response = agent.invoke(msg)
     print(f"Response: {response['messages'][-1].content}")
