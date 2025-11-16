@@ -1,6 +1,6 @@
 def test_custom_exceptions_inheritance():
     """Test that custom exceptions inherit from base exception."""
-    from commit_dude.errors import (
+    from commit_dude.core.errors import (
         ChatCommitDudeError,
         TokenLimitExceededError,
         ApiKeyMissingError,

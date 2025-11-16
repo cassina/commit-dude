@@ -11,10 +11,10 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain.agents.middleware.types import hook_config
 from langgraph.runtime import Runtime
 
-from commit_dude.config import REDACTION
-from commit_dude.settings import commit_dude_logger
-from commit_dude.errors import SecretPatternDetectorError
-from commit_dude.schemas import Strategy
+from commit_dude.core.config import REDACTION
+from commit_dude.core.settings import commit_dude_logger
+from commit_dude.core.errors import SecretPatternDetectorError
+from commit_dude.core.schemas import Strategy
 
 
 class SecretPatternDetectorMiddleware(AgentMiddleware):

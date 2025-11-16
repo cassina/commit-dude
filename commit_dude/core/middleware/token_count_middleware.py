@@ -6,9 +6,9 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain_openai import ChatOpenAI
 from langgraph.runtime import Runtime
 
-from commit_dude.settings import commit_dude_logger
-from commit_dude.config import MAX_TOKENS
-from commit_dude.errors import TokenLimitExceededError
+from commit_dude.core.settings import commit_dude_logger
+from commit_dude.core.config import MAX_TOKENS
+from commit_dude.core.errors import TokenLimitExceededError
 
 
 class TokenCountMiddleware(AgentMiddleware):

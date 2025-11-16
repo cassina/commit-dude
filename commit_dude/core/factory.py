@@ -7,10 +7,10 @@ from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage
 from langchain.agents.structured_output import ProviderStrategy
 
-from commit_dude.config import MAX_TOKENS
-from commit_dude.config import SYSTEM_PROMPT
-from commit_dude.settings import commit_dude_logger
-from commit_dude.schemas import CommitMessageResponse, Strategy
+from commit_dude.core.config import MAX_TOKENS
+from commit_dude.core.config import SYSTEM_PROMPT
+from commit_dude.core.settings import commit_dude_logger
+from commit_dude.core.schemas import CommitMessageResponse, Strategy
 from commit_dude.core.middleware import SecretPatternDetectorMiddleware, CommitLengthMiddleware, TokenCountMiddleware
 
 
