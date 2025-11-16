@@ -1,5 +1,6 @@
 import logging
-from typing import Optional
+import textwrap
+from typing import List, Optional
 
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ProviderStrategy
@@ -45,6 +46,11 @@ class CommitDudeAgent:
 
         self._logger.debug("Starting commit message generation")
         result = self._agent.invoke({"messages": [HumanMessage(content=diff)]})
+        structured_response: CommitMessageResponse = result["structured_response"]
+        structured_response.commit_message = self._wrap_commit_message(
+            structured_response.commit_message
+        )
+        result["structured_response"] = structured_response
 
         self._logger.debug("Commit message generation completed successfully")
         return result
@@ -67,6 +73,61 @@ class CommitDudeAgent:
 
         self._logger.debug("Token count validation passed")
         return num_tokens
+
+    def _wrap_commit_message(self, commit_message: str) -> str:
+        """Wrap each paragraph to ensure no line exceeds 100 characters."""
+
+        if not commit_message:
+            return commit_message
+
+        wrapped_lines: List[str] = []
+        for paragraph in self._split_paragraphs(commit_message):
+            if paragraph == "":
+                wrapped_lines.append("")
+                continue
+
+            bullet_prefix = ""
+            body = paragraph
+            for prefix in ("- ", "* ", "+ "):
+                if paragraph.startswith(prefix):
+                    bullet_prefix = prefix
+                    body = paragraph[len(prefix) :].strip()
+                    break
+
+            if bullet_prefix:
+                wrapped = textwrap.wrap(
+                    body,
+                    width=100,
+                    initial_indent=bullet_prefix,
+                    subsequent_indent=" " * len(bullet_prefix),
+                )
+            else:
+                wrapped = textwrap.wrap(paragraph, width=100)
+
+            wrapped_lines.extend(wrapped or [""])
+
+        return "\n".join(wrapped_lines)
+
+    def _split_paragraphs(self, commit_message: str) -> List[str]:
+        paragraphs: List[str] = []
+        if commit_message is None:
+            return paragraphs
+
+        current_lines: List[str] = []
+        for line in commit_message.splitlines():
+            if not line.strip():
+                if current_lines:
+                    paragraphs.append(" ".join(current_lines).strip())
+                    current_lines = []
+                paragraphs.append("")
+                continue
+
+            current_lines.append(line.strip())
+
+        if current_lines:
+            paragraphs.append(" ".join(current_lines).strip())
+
+        return paragraphs
 
 
 if __name__ == "__main__":
