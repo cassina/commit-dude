@@ -35,15 +35,12 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
         self.patterns = self._load_patterns(patterns_yaml_path)
         self.compiled = self._compile_patterns(self.patterns, confidence_threshold)
 
-    def _default_patterns_path(self) -> Traversable:
-        return resources.files("commit_dude.core.files").joinpath("rules-stable.yml")
-
     def _load_patterns(self, yaml_path: Optional[Union[str, Path, Traversable]]):
         pattern_path: Traversable
         if yaml_path:
             pattern_path = Path(yaml_path)
         else:
-            pattern_path = self._default_patterns_path()
+            pattern_path = self.default_patterns_path()
 
         with pattern_path.open("r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
@@ -84,11 +81,7 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
         text = " ".join(text_parts)
 
         # Detect patterns
-        matches = []
-        for pid, regex in self.compiled:
-            for m in regex.finditer(text):
-                matches.append((pid, m.group(0)))
-
+        matches = self._detect_one(text)
         if not matches:
             self._logger.debug("No secret patterns detected.")
             self._logger.debug(
@@ -133,3 +126,15 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
             )
             return {"messages": [*new_messages]}
         return None
+
+    def _detect_one(self, text):
+        matches = []
+        for pid, regex in self.compiled:
+            for m in regex.finditer(text):
+                matches.append((pid, m.group(0)))
+                return matches
+        return matches
+
+    @staticmethod
+    def default_patterns_path() -> Traversable:
+        return resources.files("commit_dude.core.files").joinpath("rules-stable.yml")
