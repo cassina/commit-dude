@@ -13,7 +13,7 @@ class CommitMessageResponse(BaseModel):
 
         for line in value.splitlines():
             if len(line) > 100:
-                raise ValueError("commit_message lines must be 100 characters or fewer")
+                raise ValueError(f"The commit_message lines must be 100 characters or fewer, message: {value}")
 
         return value
 
