@@ -1,5 +1,8 @@
+from typing import Literal
+
 from pydantic import BaseModel, field_validator
 
+Strategy = Literal["block", "redact"]
 
 class CommitMessageResponse(BaseModel):
     agent_response: str
@@ -13,26 +16,8 @@ class CommitMessageResponse(BaseModel):
 
         for line in value.splitlines():
             if len(line) > 100:
-                raise ValueError(f"The commit_message lines must be 100 characters or fewer, message: {value}")
+                raise ValueError(
+                    f"The commit_message lines must be 100 characters or fewer, message: {value}"
+                )
 
         return value
-
-
-class Result:
-    def __init__(self, value=None, error_message=None):
-        self.value = value
-        self.error_message = error_message
-
-    @staticmethod
-    def ok(value):
-        return Result(value=value)
-
-    @staticmethod
-    def err(msg):
-        return Result(error_message=msg)
-
-    def is_ok(self):
-        return self.error_message is None
-
-    def is_err(self):
-        return not self.is_ok()

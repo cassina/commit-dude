@@ -6,13 +6,14 @@ from pathlib import Path
 from typing import Any, List, Union, Literal, Optional
 
 from langchain.agents import AgentState
+from langchain_core.messages import BaseMessage
 from langchain.agents.middleware import AgentMiddleware
 from langchain.agents.middleware.types import hook_config
-from langchain_core.messages import BaseMessage
 
+from commit_dude.config import REDACTION
 from commit_dude.settings import commit_dude_logger
 from commit_dude.errors import SecretPatternDetectorError
-from commit_dude.config import REDACTION
+from commit_dude.schemas import Strategy
 
 
 class SecretPatternDetectorMiddleware(AgentMiddleware):
@@ -25,14 +26,15 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
             str, Path
         ] = "commit_dude/core/files/rules-stable.yml",
         confidence_threshold: float = 0.5,
-        strategy: Literal["block", "redact"] = "block",
+        strategy: Strategy = "block",
     ):
         self._logger = logger or commit_dude_logger(__name__)
         self.strategy = strategy
         self.patterns = self._load_patterns(patterns_yaml_path)
         self.compiled = self._compile_patterns(self.patterns, confidence_threshold)
 
-    def _load_patterns(self, yaml_path):
+    @staticmethod
+    def _load_patterns(yaml_path):
         with open(yaml_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
         return data.get("patterns", [])
@@ -80,7 +82,7 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
         if not matches:
             self._logger.debug("No secret patterns detected.")
             self._logger.debug(
-                "Finished secret pattern detection in %.2f ms. Generating commit message...",
+                "Finished secret pattern detection in %.2f ms.",
                 (time.perf_counter() - start_time) * 1000,
             )
             return None
@@ -116,7 +118,7 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
                 f"Finished secret pattern detection. Replaced {replaced_count} patterns."
             )
             self._logger.debug(
-                "Generating commit message after %.2f ms of secret pattern detection...",
+                "Finished secret pattern detection after %.2f ms",
                 (time.perf_counter() - start_time) * 1000,
             )
             return {"messages": [*new_messages]}
