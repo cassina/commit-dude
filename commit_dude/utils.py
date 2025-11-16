@@ -1,11 +1,12 @@
 import textwrap
 from typing import List
 
+from commit_dude.config import COMMIT_LINE_LENGTH
 
 BULLET_PREFIXES = ("- ", "* ", "+ ")
 
 
-def wrap_commit_message(commit_message: str) -> str:
+def wrap_commit_message(commit_message: str, max_len: int = COMMIT_LINE_LENGTH) -> str:
     """Wrap commit messages so that no line exceeds 100 characters."""
     wrapped_lines: List[str] = []
     paragraph_lines: List[str] = []
@@ -46,7 +47,7 @@ def wrap_commit_message(commit_message: str) -> str:
             wrapped_lines.extend(
                 textwrap.wrap(
                     body,
-                    width=100,
+                    width=max_len,
                     initial_indent=initial_indent,
                     subsequent_indent=subsequent_indent,
                 )

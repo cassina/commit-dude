@@ -9,6 +9,7 @@ from langchain.agents import AgentState
 from langchain_core.messages import BaseMessage
 from langchain.agents.middleware import AgentMiddleware
 from langchain.agents.middleware.types import hook_config
+from langgraph.runtime import Runtime
 
 from commit_dude.config import REDACTION
 from commit_dude.settings import commit_dude_logger
@@ -60,12 +61,12 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
         return compiled
 
     @hook_config(can_jump_to=["end"])
-    def before_model(self, state: AgentState, runtime: Any):
+    def before_model(self, state: AgentState, runtime: Runtime):
         start_time = time.perf_counter()
         self._logger.debug("Checking for secret patterns...")
         text_parts = []
 
-        # Collect messages
+        # Collect messages (We only have 1 message per call)
         for msg in state["messages"]:
             c = getattr(msg, "content", "")
             if isinstance(c, str):

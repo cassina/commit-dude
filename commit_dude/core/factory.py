@@ -9,11 +9,9 @@ from langchain.agents.structured_output import ProviderStrategy
 
 from commit_dude.config import MAX_TOKENS
 from commit_dude.config import SYSTEM_PROMPT
-from commit_dude.utils import wrap_commit_message
 from commit_dude.settings import commit_dude_logger
 from commit_dude.schemas import CommitMessageResponse, Strategy
-from commit_dude.errors import TokenLimitExceededError
-from commit_dude.core.middleware import SecretPatternDetectorMiddleware
+from commit_dude.core.middleware import SecretPatternDetectorMiddleware, CommitLengthMiddleware, TokenCountMiddleware
 
 
 class CommitDudeAgent:
@@ -32,7 +30,9 @@ class CommitDudeAgent:
         # Set Agent configuration
         self._model = ChatOpenAI(model=model_name, temperature=0.5)
         self._middleware: Sequence[Any] = [
+            TokenCountMiddleware(model=self._model),
             SecretPatternDetectorMiddleware(strategy=self._strategy),
+            CommitLengthMiddleware(),
         ]
 
         # Create Agent
@@ -44,12 +44,6 @@ class CommitDudeAgent:
         )
 
     def invoke(self, diff: str) -> CommitMessageResponse:
-        start_time = perf_counter()
-        self._logger.debug("Starting diff processing")
-
-        # Validate approximate token count
-        self._validate_num_tokens(diff)
-
         self._logger.debug("Starting commit message generation")
 
         # --- Agent call ---
@@ -75,44 +69,10 @@ class CommitDudeAgent:
                 f"'structured_response' must be CommitMessageResponse, got {type(structured)}"
             )
 
-        # --- Cleanup / postprocess ---
-        cleaned_message = self._ensure_commit_message_length(structured.commit_message)
-        new_response: CommitMessageResponse = structured.model_copy(
-            update={"commit_message": cleaned_message}
-        )
-
         self._logger.debug("Commit message generation completed successfully")
-        self._logger.debug(
-            "CommitDudeAgent.invoke completed in %.3f seconds",
-            perf_counter() - start_time,
-        )
 
         # Return a NEW dict to avoid side effects
-        return new_response
-
-    def _validate_num_tokens(self, diff: str) -> int:
-        self._logger.debug("Validating token count for diff")
-
-        num_tokens = self._model.get_num_tokens(diff)
-        self._logger.debug(
-            "Diff token count: %d (max allowed: %d)", num_tokens, self._max_tokens
-        )
-
-        if num_tokens > self._max_tokens:
-            error_msg = (
-                f"Diff is too long. Max tokens: {self._max_tokens}, "
-                f"diff tokens: {num_tokens}"
-            )
-            self._logger.error(error_msg)
-            raise TokenLimitExceededError(error_msg)
-
-        self._logger.debug("Token count validation passed")
-        return num_tokens
-
-    @staticmethod
-    def _ensure_commit_message_length(commit_message: str) -> str:
-        return wrap_commit_message(commit_message=commit_message)
-
+        return structured
 
 if __name__ == "__main__":
     agent = CommitDudeAgent(strict=False)
