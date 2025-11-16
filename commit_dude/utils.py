@@ -7,10 +7,6 @@ BULLET_PREFIXES = ("- ", "* ", "+ ")
 
 def wrap_commit_message(commit_message: str) -> str:
     """Wrap commit messages so that no line exceeds 100 characters."""
-
-    if commit_message is None:
-        return commit_message
-
     wrapped_lines: List[str] = []
     paragraph_lines: List[str] = []
 
@@ -18,21 +14,25 @@ def wrap_commit_message(commit_message: str) -> str:
         if not paragraph_lines:
             return
 
-        paragraph = " ".join(line.strip() for line in paragraph_lines).strip()
+        paragraph = " ".join(
+            paragraph_line.strip() for paragraph_line in paragraph_lines
+        ).strip()
+
         if paragraph:
             wrapped_lines.extend(textwrap.wrap(paragraph, width=100) or [""])
         else:
             wrapped_lines.append("")
+
         paragraph_lines.clear()
 
-    for line in commit_message.splitlines():
-        stripped = line.lstrip()
+    for commit_line in commit_message.splitlines():
+        stripped = commit_line.lstrip()
         if not stripped:
             flush_paragraph()
             wrapped_lines.append("")
             continue
 
-        indent = line[: len(line) - len(stripped)]
+        indent = commit_line[: len(commit_line) - len(stripped)]
         bullet_prefix = next(
             (prefix for prefix in BULLET_PREFIXES if stripped.startswith(prefix)),
             None,
@@ -54,8 +54,7 @@ def wrap_commit_message(commit_message: str) -> str:
             )
             continue
 
-        paragraph_lines.append(line)
+        paragraph_lines.append(commit_line)
 
     flush_paragraph()
-
     return "\n".join(wrapped_lines)

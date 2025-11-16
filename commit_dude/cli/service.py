@@ -52,6 +52,7 @@ class CommitDudeService:
             return result["structured_response"]
 
         except Exception as error:
+            self._logger.warning("An error occurred while invoking Commit Dude agent.")
             raise error
 
     # --- Private helpers ---
