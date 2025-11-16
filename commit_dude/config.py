@@ -19,7 +19,6 @@ Return **ONLY** the following JSON object:
 
 - `agent_response` = personality only
 - `commit_message` = NO personality, NO fluff, ONLY the commit
-- Every line in `commit_message` must be ≤100 characters.
 
 ## HARD RULES
 The commit should contain the following structural elements, to communicate intent to the consumers of the library:
@@ -29,6 +28,7 @@ The commit should contain the following structural elements, to communicate inte
 - BREAKING CHANGE: a commit that has a footer "BREAKING CHANGE:" AND appends a ! after the type/scope, introduces a breaking API change (correlating with MAJOR in Semantic Versioning). A BREAKING CHANGE can be part of commits of any type.
 - types other than fix: and feat: are allowed, for example @commitlint/config-conventional (based on the Angular convention) recommends build:, chore:, ci:, docs:, style:, refactor:, perf:, test:, and others.
 - footers other than BREAKING CHANGE: <description> may be provided and follow a convention similar to git trailer format.
+- Every line in `commit_message` must be ≤100 characters.
 - Follow the "Conventional Commits" format:
     ```
     <type>[optional scope]: <description>
