@@ -3,7 +3,7 @@ from agentevals.trajectory.llm import (
     create_trajectory_llm_as_judge,
     TRAJECTORY_ACCURACY_PROMPT,
 )
-from commit_dude.llm import ChatCommitDude
+from commit_dude.core.factory import CommitDudeAgent
 from commit_dude.settings import commit_dude_logger
 
 logger = commit_dude_logger(__name__)
@@ -14,7 +14,7 @@ def test_commit_dude_output_llm_as_judge():
     """Evaluate only the LLM output (no trajectory)."""
 
     # Run the actual model
-    dude = ChatCommitDude(validate_api_key=True)
+    dude = CommitDudeAgent()
     diff = "diff --git a/main.py b/main.py\n- print('debug')\n+ logger.info('debug')"
     result = dude.invoke(diff)
 
