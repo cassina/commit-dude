@@ -121,5 +121,8 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
             )
             self._log_completion(start_time, "Generating commit message...")
             return {"messages": [*new_messages]}
-        self._log_completion(start_time)
-        return None
+        unsupported_strategy_message = (
+            f"Unsupported secret pattern strategy '{self.strategy}'."
+        )
+        self._log_completion(start_time, unsupported_strategy_message)
+        raise SecretPatternDetectorError(unsupported_strategy_message)
