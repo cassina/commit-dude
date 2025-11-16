@@ -32,5 +32,6 @@ testpaths = ["tests"]
 [dependency-groups]
 dev = [
     "agentevals>=0.0.9",
+    "hatchling>=1.27.0",
     "ruff>=0.14.4",
 ]
