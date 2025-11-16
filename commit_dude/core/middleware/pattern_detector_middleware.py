@@ -1,4 +1,5 @@
 import re
+import time
 import yaml
 import logging
 from pathlib import Path
@@ -58,6 +59,7 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
 
     @hook_config(can_jump_to=["end"])
     def before_model(self, state: AgentState, runtime: Any):
+        start_time = time.perf_counter()
         self._logger.debug("Checking for secret patterns...")
         text_parts = []
 
@@ -78,13 +80,18 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
         if not matches:
             self._logger.debug("No secret patterns detected.")
             self._logger.debug(
-                "Finished secret pattern detection. Generating commit message..."
+                "Finished secret pattern detection in %.2f ms. Generating commit message...",
+                (time.perf_counter() - start_time) * 1000,
             )
             return None
 
         self._logger.warning(f"Secret patterns detected. Strategy: {self.strategy}")
         # 🚨 BLOCK MODE: hard stop
         if self.strategy == "block":
+            self._logger.debug(
+                "Secret pattern detection completed in %.2f ms before blocking.",
+                (time.perf_counter() - start_time) * 1000,
+            )
             raise SecretPatternDetectorError(
                 f"Secret pattern detected: {matches[0][0]}"
             )
@@ -108,6 +115,9 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
             self._logger.warning(
                 f"Finished secret pattern detection. Replaced {replaced_count} patterns."
             )
-            self._logger.debug("Generating commit message...")
+            self._logger.debug(
+                "Generating commit message after %.2f ms of secret pattern detection...",
+                (time.perf_counter() - start_time) * 1000,
+            )
             return {"messages": [*new_messages]}
         return None
