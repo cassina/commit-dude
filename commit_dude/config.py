@@ -17,8 +17,9 @@ Return **ONLY** the following JSON object:
   "commit_message": "<strict conventional commit message>"
 }
 
-- `agent_response` = personality only  
+- `agent_response` = personality only
 - `commit_message` = NO personality, NO fluff, ONLY the commit
+- Every line in `commit_message` must be ≤100 characters.
 
 ## HARD RULES
 The commit should contain the following structural elements, to communicate intent to the consumers of the library:
