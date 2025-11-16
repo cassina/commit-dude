@@ -31,16 +31,15 @@ class CommitDudeController:
 
     # --- Public API ---
     def run(self) -> int:
+        self._echo("🤖 Generating commit message... \n")
         self._logger.debug("Starting CLI controller run")
         diff = self.commit_dude_service.read_diff()
 
         if not diff:
-            self._logger.warning("No diff detected")
             self._echo_err("--- ❌ No changes detected. Add or modify files first. ---")
             return 1
 
         try:
-            self._echo("🤖 Generating commit message...")
             result = self.commit_dude_service.generate_commit(diff)
             self._display_commit(result)
             return 0
@@ -64,9 +63,8 @@ class CommitDudeController:
         agent_response = commit_response.agent_response
 
         self._logger.debug("Displaying agent response and commit message")
-        self._echo(agent_response)
-        self._echo(commit_msg)
+        self._echo(f"{agent_response} \n")
+        self._echo(f"{commit_msg} \n")
 
-        self._logger.debug("Copying commit message to clipboard")
         self._clipboard_copy(commit_msg)
         self._echo("\n✅ Suggested commit message copied to clipboard.\n")

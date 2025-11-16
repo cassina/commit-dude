@@ -50,7 +50,7 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
             try:
                 compiled.append((pid, re.compile(regex)))
             except re.error as err:
-                print(f"WARNING: bad regex for {pid}: {err}")
+                self._logger.warning(f"Bad regex for {pid}: {err}")
 
         return compiled
 
@@ -65,16 +65,6 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
             if isinstance(c, str):
                 text_parts.append(c)
 
-        # Collect state input
-        if "input" in state and state["input"]:
-            inp = state["input"]
-            if isinstance(inp, str):
-                text_parts.append(inp)
-            elif isinstance(inp, dict):
-                for v in inp.values():
-                    if isinstance(v, str):
-                        text_parts.append(v)
-
         text = " ".join(text_parts)
 
         # Detect patterns
@@ -84,7 +74,8 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
                 matches.append((pid, m.group(0)))
 
         if not matches:
-            self._logger.debug("No secret patterns detected")
+            self._logger.debug("No secret patterns detected.")
+            self._logger.debug("Finished secret pattern detection. Generating commit message...")
             return None
 
         self._logger.warning(f"Secret patterns detected. Strategy: {self.strategy}")
@@ -93,6 +84,8 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
             raise SecretPatternDetectorError(f"Secret pattern detected: {matches[0][0]}")
 
         # 🛡️ REDACT MODE: continue, but sanitize messages
+        self._logger.warning(f"Redacting secret patterns detected...")
+        replaced_count = 0
         if self.strategy == "redact":
             new_messages: List[BaseMessage] = []
             for msg in state["messages"]:
@@ -101,19 +94,16 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
                 if isinstance(content, str):
                     for _, detected in matches:
                         content = content.replace(detected, REDACTION)
-
+                        replaced_count += 1
                     msg = msg.model_copy(update={"content": content})
 
                 new_messages.append(msg)
 
-            # Log redacted messages in debug mode
-            # for message in new_messages:
-            #     self._logger.debug(f"Redacted content: {message.content}")
-
+            self._logger.warning(f"Finished secret pattern detection. Replaced {replaced_count} patterns.")
+            self._logger.debug("Generating commit message...")
             return {
                 "messages": [
                     *new_messages
                 ]
             }
-
         return None
