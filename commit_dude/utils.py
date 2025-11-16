@@ -7,7 +7,7 @@ BULLET_PREFIXES = ("- ", "* ", "+ ")
 
 
 def wrap_commit_message(commit_message: str, max_len: int = COMMIT_LINE_LENGTH) -> str:
-    """Wrap commit messages so that no line exceeds 100 characters."""
+    """Wrap commit messages so that no line exceeds ``max_len`` characters."""
     wrapped_lines: List[str] = []
     paragraph_lines: List[str] = []
 
@@ -20,7 +20,7 @@ def wrap_commit_message(commit_message: str, max_len: int = COMMIT_LINE_LENGTH) 
         ).strip()
 
         if paragraph:
-            wrapped_lines.extend(textwrap.wrap(paragraph, width=100) or [""])
+            wrapped_lines.extend(textwrap.wrap(paragraph, width=max_len) or [""])
         else:
             wrapped_lines.append("")
 
