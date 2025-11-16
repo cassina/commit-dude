@@ -16,11 +16,11 @@ from commit_dude.core.middleware import SecretPatternDetectorMiddleware
 
 class CommitDudeAgent:
     def __init__(
-            self,
-            logger: Optional[logging.Logger] = None,
-            model_name: str = "gpt-5-mini",
-            # model_name: str = "gpt-4o-mini",
-            strict: bool = True,
+        self,
+        logger: Optional[logging.Logger] = None,
+        model_name: str = "gpt-5-mini",
+        # model_name: str = "gpt-4o-mini",
+        strict: bool = True,
     ) -> None:
         self._logger = logger or commit_dude_logger(__name__)
         self._max_tokens = MAX_TOKENS
@@ -29,7 +29,11 @@ class CommitDudeAgent:
             model=self._model,
             system_prompt=SYSTEM_PROMPT,
             response_format=ProviderStrategy(CommitMessageResponse),
-            middleware=[SecretPatternDetectorMiddleware(strategy=f"{'block' if strict else 'redact'}")]
+            middleware=[
+                SecretPatternDetectorMiddleware(
+                    strategy=f"{'block' if strict else 'redact'}"
+                )
+            ],
         )
         self._strict = strict
 

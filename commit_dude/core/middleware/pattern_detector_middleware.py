@@ -101,7 +101,7 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
             )
 
         # 🛡️ REDACT MODE: continue, but sanitize messages
-        self._logger.warning(f"Redacting secret patterns detected...")
+        self._logger.warning("Redacting secret patterns detected...")
         replaced_count = 0
         if self.strategy == "redact":
             new_messages: List[BaseMessage] = []
