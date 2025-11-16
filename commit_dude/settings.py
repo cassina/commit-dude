@@ -83,7 +83,6 @@ class _ColorFormatter(logging.Formatter):
         return style.render(message, record.name)
 
 
-
 def _parse_level_from_env() -> int | None:
     """Return the log level defined in the environment, if any."""
 

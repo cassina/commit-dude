@@ -18,11 +18,13 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
     state_schema = AgentState
 
     def __init__(
-            self,
-            logger: Optional[logging.Logger] = None,
-            patterns_yaml_path: Union[str, Path] = "commit_dude/core/files/rules-stable.yml",
-            confidence_threshold: float = 0.5,
-            strategy: Literal["block", "redact"] = "block",
+        self,
+        logger: Optional[logging.Logger] = None,
+        patterns_yaml_path: Union[
+            str, Path
+        ] = "commit_dude/core/files/rules-stable.yml",
+        confidence_threshold: float = 0.5,
+        strategy: Literal["block", "redact"] = "block",
     ):
         self._logger = logger or commit_dude_logger(__name__)
         self.strategy = strategy
@@ -75,16 +77,20 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
 
         if not matches:
             self._logger.debug("No secret patterns detected.")
-            self._logger.debug("Finished secret pattern detection. Generating commit message...")
+            self._logger.debug(
+                "Finished secret pattern detection. Generating commit message..."
+            )
             return None
 
         self._logger.warning(f"Secret patterns detected. Strategy: {self.strategy}")
         # 🚨 BLOCK MODE: hard stop
         if self.strategy == "block":
-            raise SecretPatternDetectorError(f"Secret pattern detected: {matches[0][0]}")
+            raise SecretPatternDetectorError(
+                f"Secret pattern detected: {matches[0][0]}"
+            )
 
         # 🛡️ REDACT MODE: continue, but sanitize messages
-        self._logger.warning(f"Redacting secret patterns detected...")
+        self._logger.warning("Redacting secret patterns detected...")
         replaced_count = 0
         if self.strategy == "redact":
             new_messages: List[BaseMessage] = []
@@ -99,11 +105,9 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
 
                 new_messages.append(msg)
 
-            self._logger.warning(f"Finished secret pattern detection. Replaced {replaced_count} patterns.")
+            self._logger.warning(
+                f"Finished secret pattern detection. Replaced {replaced_count} patterns."
+            )
             self._logger.debug("Generating commit message...")
-            return {
-                "messages": [
-                    *new_messages
-                ]
-            }
+            return {"messages": [*new_messages]}
         return None
