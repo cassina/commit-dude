@@ -91,38 +91,38 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
             self._logger.debug("No secret patterns detected.")
             self._log_completion(start_time, "Generating commit message...")
             return None
+        else:
+            self._logger.warning(f"Secret patterns detected. Strategy: {self.strategy}")
+            # 🚨 BLOCK MODE: hard stop
+            if self.strategy == "block":
+                self._log_completion(start_time, "Blocking commit message generation.")
 
-        self._logger.warning(f"Secret patterns detected. Strategy: {self.strategy}")
-        # 🚨 BLOCK MODE: hard stop
-        if self.strategy == "block":
-            self._log_completion(start_time, "Blocking commit message generation.")
-            raise SecretPatternDetectorError(
-                f"Secret pattern detected: {matches[0][0]}"
-            )
+                raise SecretPatternDetectorError(
+                    f"Secret pattern detected: {matches[0][0]}"
+                )
 
-        # 🛡️ REDACT MODE: continue, but sanitize messages
-        self._logger.warning("Redacting secret patterns detected...")
-        replaced_count = 0
-        if self.strategy == "redact":
-            new_messages: List[BaseMessage] = []
-            for msg in state["messages"]:
-                content = getattr(msg, "content", "")
+            else:
+                # 🛡️ REDACT MODE: continue, but sanitize messages
+                self._logger.warning("Redacting secret patterns detected...")
+                replaced_count = 0
 
-                if isinstance(content, str):
-                    for _, detected in matches:
-                        content = content.replace(detected, REDACTION)
-                        replaced_count += 1
-                    msg = msg.model_copy(update={"content": content})
+                new_messages: List[BaseMessage] = []
+                for msg in state["messages"]:
+                    content = getattr(msg, "content", "")
 
-                new_messages.append(msg)
+                    if isinstance(content, str):
+                        for _, detected in matches:
+                            content = content.replace(detected, REDACTION)
+                            replaced_count += 1
+                        msg = msg.model_copy(update={"content": content})
 
-            self._logger.warning(
-                f"Finished secret pattern detection. Replaced {replaced_count} patterns."
-            )
-            self._log_completion(start_time, "Generating commit message...")
-            return {"messages": [*new_messages]}
-        unsupported_strategy_message = (
-            f"Unsupported secret pattern strategy '{self.strategy}'."
-        )
-        self._log_completion(start_time, unsupported_strategy_message)
-        raise SecretPatternDetectorError(unsupported_strategy_message)
+                    new_messages.append(msg)
+
+                self._logger.warning(f"Finished secret pattern detection. Replaced {replaced_count} patterns.")
+                self._log_completion(start_time, "Generating commit message...")
+                return {
+                    "messages": [
+                        *new_messages
+                    ]
+                }
+        # return None
