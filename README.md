@@ -8,6 +8,7 @@ Commit Dude is a friendly command line helper that turns your staged or working 
 - Automatically includes `git status --porcelain` output for additional context.
 - Copies the suggested message to your clipboard using `pyperclip`.
 - Works as a standalone CLI (`commit-dude`) or through `python -m commit_dude`.
+- Wraps commit subjects and bodies to a 100-character width so long lines are automatically reflowed.
 
 ## 📦 Requirements
 - Python 3.10 or newer.
@@ -34,6 +35,21 @@ uv run commit-dude
 
 ```bash
 git diff | uv run commit-dude
+```
+
+By default, the CLI runs in **strict** mode and blocks generation if secret patterns are detected in the
+diff. Use the `--no-strict` flag to switch to redaction mode, which redacts detected secrets instead
+of aborting the run:
+
+```bash
+uv run commit-dude --no-strict
+```
+
+If you need additional diagnostics (including middleware logs and detection decisions), enable debug
+logging:
+
+```bash
+uv run commit-dude --debug
 ```
 
 The output will be similar to:
