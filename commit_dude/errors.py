@@ -8,3 +8,7 @@ class TokenLimitExceededError(ChatCommitDudeError):
 
 class ApiKeyMissingError(ChatCommitDudeError):
     """Raised when OPENAI_API_KEY is not found."""
+
+
+class SecretPatternDetectorError(ChatCommitDudeError):
+    """Raised when the secret pattern detector fails."""

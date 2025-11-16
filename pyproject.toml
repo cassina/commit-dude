@@ -5,18 +5,18 @@ description = "CLI that generates Conventional Commits from git diffs using Lang
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "langchain>=0.1.0",
-    "langchain-openai>=0.0.2",
+    "langchain~=1.0.0",
+    "langchain-openai~=1.0.0",
     "click>=8.0.0",
     "pyperclip>=1.8.0",
     "python-dotenv>=1.0.0",
-    "pytest>=9.0.0",
+    "pytest~=9.0.0",
     "pytest-cov>=6.0.0",
     "pydantic>=2.12.4",
 ]
 
 [project.scripts]
-commit-dude = "commit_dude.cli:main"
+commit-dude = "commit_dude.cli:run_commit_dude"
 
 [build-system]
 requires = ["hatchling"]
