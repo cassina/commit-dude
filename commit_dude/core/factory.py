@@ -1,4 +1,5 @@
 import logging
+from time import perf_counter
 from typing import Optional, Dict, Any, Sequence
 
 from langchain_openai import ChatOpenAI
@@ -43,6 +44,7 @@ class CommitDudeAgent:
         )
 
     def invoke(self, diff: str) -> CommitMessageResponse:
+        start_time = perf_counter()
         self._logger.debug("Starting diff processing")
 
         # Validate approximate token count
@@ -52,8 +54,13 @@ class CommitDudeAgent:
 
         # --- Agent call ---
         try:
+            agent_start_time = perf_counter()
             result: Dict[str, Any] = self._agent.invoke(
                 {"messages": [HumanMessage(content=diff)]}
+            )
+            self._logger.debug(
+                "Agent invocation completed in %.3f seconds",
+                perf_counter() - agent_start_time,
             )
         except Exception as exc:
             self._logger.error("Agent invocation failed: %s", exc)
@@ -70,9 +77,15 @@ class CommitDudeAgent:
 
         # --- Cleanup / postprocess ---
         cleaned_message = self._ensure_commit_message_length(structured.commit_message)
-        new_response: CommitMessageResponse = structured.model_copy(update={"commit_message": cleaned_message})
+        new_response: CommitMessageResponse = structured.model_copy(
+            update={"commit_message": cleaned_message}
+        )
 
         self._logger.debug("Commit message generation completed successfully")
+        self._logger.debug(
+            "CommitDudeAgent.invoke completed in %.3f seconds",
+            perf_counter() - start_time,
+        )
 
         # Return a NEW dict to avoid side effects
         return new_response
