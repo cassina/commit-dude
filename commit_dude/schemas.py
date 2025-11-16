@@ -4,6 +4,7 @@ from pydantic import BaseModel, field_validator
 
 Strategy = Literal["block", "redact"]
 
+
 class CommitMessageResponse(BaseModel):
     agent_response: str
     commit_message: str
