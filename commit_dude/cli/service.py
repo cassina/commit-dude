@@ -49,7 +49,7 @@ class CommitDudeService:
             self._logger.debug("⛓️ Invoking Commit Dude agent...")
             result = self.agent.invoke(diff)
             self._logger.debug("⛓️ Invocation completed successfully.")
-            return result["structured_response"]
+            return result
 
         except Exception as error:
             self._logger.warning("An error occurred while invoking Commit Dude agent.")

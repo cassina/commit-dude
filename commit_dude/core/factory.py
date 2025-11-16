@@ -42,7 +42,7 @@ class CommitDudeAgent:
             middleware=self._middleware,
         )
 
-    def invoke(self, diff: str) -> dict:
+    def invoke(self, diff: str) -> CommitMessageResponse:
         self._logger.debug("Starting diff processing")
 
         # Validate approximate token count
@@ -60,7 +60,7 @@ class CommitDudeAgent:
             raise
 
         # --- Validate structured response ---
-        structured = result.get("structured_response")
+        structured: CommitMessageResponse = result.get("structured_response")
         if structured is None:
             raise RuntimeError("Agent did not return a 'structured_response' key.")
         if not isinstance(structured, CommitMessageResponse):
@@ -70,12 +70,12 @@ class CommitDudeAgent:
 
         # --- Cleanup / postprocess ---
         cleaned_message = self._ensure_commit_message_length(structured.commit_message)
-        new_response = structured.model_copy(update={"commit_message": cleaned_message})
+        new_response: CommitMessageResponse = structured.model_copy(update={"commit_message": cleaned_message})
 
         self._logger.debug("Commit message generation completed successfully")
 
         # Return a NEW dict to avoid side effects
-        return {**result, "structured_response": new_response}
+        return new_response
 
     def _validate_num_tokens(self, diff: str) -> int:
         self._logger.debug("Validating token count for diff")
