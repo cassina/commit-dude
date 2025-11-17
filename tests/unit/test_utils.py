@@ -53,3 +53,28 @@ def test_wrap_commit_message_wraps_breaking_change_footer():
 
     assert any(line.startswith("BREAKING CHANGE:") for line in lines)
     assert all(len(line) <= COMMIT_LINE_LENGTH for line in lines if line)
+
+
+def test_wrap_commit_message_wraps_multiple_breaking_change_footers():
+    message = textwrap.dedent(
+        """
+        refactor(core)!: reorganize modules and update imports
+
+        - rename commit_dude/core/agents.py -> commit_dude/core/agents.py
+        - move commit_dude/utils.py -> commit_dude/core/utils.py
+        - update imports in cli, service, middleware, and tests
+        - add empty commit_dude/shared package
+
+        BREAKING CHANGE: update external imports: commit_dude.core.factory -> commit_dude.core.agents; commit_dude.utils -> commit_dude.core.utils update external imports: commit_dude.core.factory -> commit_dude.core.agents; commit_dude.utils -> commit_dude.core.utils
+
+        BREAKING CHANGE: update external imports: commit_dude.core.factory -> commit_dude.core.agents; commit_dude.utils -> commit_dude.core.utils update external imports: commit_dude.core.factory -> commit_dude.core.agents; commit_dude.utils -> commit_dude.core.utils
+        """
+    ).strip()
+
+    wrapped = wrap_commit_message(message, max_len=COMMIT_LINE_LENGTH)
+    lines = wrapped.splitlines()
+
+    breaking_change_lines = [line for line in lines if line.startswith("BREAKING CHANGE:")]
+
+    assert len(breaking_change_lines) == 2
+    assert all(len(line) <= COMMIT_LINE_LENGTH for line in lines if line)
