@@ -4,6 +4,20 @@ from commit_dude.core.config import COMMIT_LINE_LENGTH
 from commit_dude.core.utils import wrap_commit_message
 
 
+MAIN_EXAMPLE = textwrap.dedent(
+    """
+    refactor(core)!: reorganize modules and update imports rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py
+
+    - rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py
+    - move commit_dude/utils.py -> commit_dude/core/utils.py move commit_dude/utils.py -> commit_dude/core/utils.py move commit_dude/utils.py -> commit_dude/core/utils.py move commit_dude/utils.py -> commit_dude/core/utils.py
+    - update imports in cli, service, middleware, and tests
+    - add empty commit_dude/shared package
+
+    BREAKING CHANGE: update external imports: commit_dude.core.factory -> commit_dude.core.agents; commit_dude.utils -> commit_dude.core.utils
+    """
+).strip()
+
+
 def test_wrap_commit_message_wraps_breaking_change_footer():
     message = textwrap.dedent(
         """
@@ -51,20 +65,7 @@ def test_wrap_commit_message_wraps_multiple_breaking_change_footers():
 
 
 def test_wrap_commit_message_wraps_main_example_without_exceeding_limit():
-    main_example = textwrap.dedent(
-        """
-        refactor(core)!: reorganize modules and update imports rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py
-
-        - rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py
-        - move commit_dude/utils.py -> commit_dude/core/utils.py move commit_dude/utils.py -> commit_dude/core/utils.py move commit_dude/utils.py -> commit_dude/core/utils.py move commit_dude/utils.py -> commit_dude/core/utils.py
-        - update imports in cli, service, middleware, and tests
-        - add empty commit_dude/shared package
-
-        BREAKING CHANGE: update external imports: commit_dude.core.factory -> commit_dude.core.agents; commit_dude.utils -> commit_dude.core.utils
-        """
-    ).strip()
-
-    wrapped = wrap_commit_message(main_example, max_len=COMMIT_LINE_LENGTH)
+    wrapped = wrap_commit_message(MAIN_EXAMPLE, max_len=COMMIT_LINE_LENGTH)
 
     lines = wrapped.splitlines()
 
@@ -73,20 +74,7 @@ def test_wrap_commit_message_wraps_main_example_without_exceeding_limit():
 
 
 def test_wrap_commit_message_wraps_main_example_bullet_continuations_with_indent():
-    main_example = textwrap.dedent(
-        """
-        refactor(core)!: reorganize modules and update imports rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py
-
-        - rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py
-        - move commit_dude/utils.py -> commit_dude/core/utils.py move commit_dude/utils.py -> commit_dude/core/utils.py move commit_dude/utils.py -> commit_dude/core/utils.py move commit_dude/utils.py -> commit_dude/core/utils.py
-        - update imports in cli, service, middleware, and tests
-        - add empty commit_dude/shared package
-
-        BREAKING CHANGE: update external imports: commit_dude.core.factory -> commit_dude.core.agents; commit_dude.utils -> commit_dude.core.utils
-        """
-    ).strip()
-
-    wrapped = wrap_commit_message(main_example, max_len=COMMIT_LINE_LENGTH)
+    wrapped = wrap_commit_message(MAIN_EXAMPLE, max_len=COMMIT_LINE_LENGTH)
     bullet_lines = [line for line in wrapped.splitlines() if line.startswith("- ")]
 
     assert len(bullet_lines) == 4
@@ -95,20 +83,7 @@ def test_wrap_commit_message_wraps_main_example_bullet_continuations_with_indent
 
 
 def test_wrap_commit_message_wraps_main_example_breaking_change_alignment():
-    main_example = textwrap.dedent(
-        """
-        refactor(core)!: reorganize modules and update imports rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py
-
-        - rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py rename commit_dude/core/agents.py -> commit_dude/core/agents.py
-        - move commit_dude/utils.py -> commit_dude/core/utils.py move commit_dude/utils.py -> commit_dude/core/utils.py move commit_dude/utils.py -> commit_dude/core/utils.py move commit_dude/utils.py -> commit_dude/core/utils.py
-        - update imports in cli, service, middleware, and tests
-        - add empty commit_dude/shared package
-
-        BREAKING CHANGE: update external imports: commit_dude.core.factory -> commit_dude.core.agents; commit_dude.utils -> commit_dude.core.utils
-        """
-    ).strip()
-
-    wrapped = wrap_commit_message(main_example, max_len=COMMIT_LINE_LENGTH)
+    wrapped = wrap_commit_message(MAIN_EXAMPLE, max_len=COMMIT_LINE_LENGTH)
     lines = wrapped.splitlines()
 
     breaking_change_line_index = next(
