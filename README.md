@@ -152,7 +152,13 @@ We cannot guarantee the:
 of OpenAI’s services.
 
 ### **Future Local LLM Support**
-We are actively exploring the addition of a **local LLM mode** in a future release, which would allow Commit Dude to run entirely on your machine without transmitting diffs to any external service. This feature is not yet available and no timeline is guaranteed, but it reflects our long-term commitment to improved privacy and offline-first workflows.
+Commit Dude also supports a fully local workflow when you prefer not to send diffs to OpenAI. Point the CLI at an [Ollama](https://ollama.com/) runtime (default model: `llama3.2`) with:
+
+```bash
+commit-dude --model-provider local --local-model-id llama3.2
+```
+
+Use `--local-base-url` to target a remote Ollama host (defaults to `http://localhost:11434`). The local pathway does **not** require `OPENAI_API_KEY`.
 
 ### **Summary**
 Use Commit Dude responsibly:

@@ -4,17 +4,22 @@ from time import perf_counter
 from typing import Optional, Dict, Any, Sequence
 
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
 from langchain.agents import create_agent
-from langchain_core.messages import HumanMessage
 from langchain.agents.structured_output import ProviderStrategy
+from langchain_core.messages import HumanMessage
+from langchain_openai import ChatOpenAI
 
 from commit_dude.core.config import MAX_TOKENS
 from commit_dude.core.config import SYSTEM_PROMPT
 from commit_dude.core.errors import ApiKeyMissingError
 from commit_dude.core.settings import commit_dude_logger
 from commit_dude.core.schemas import CommitMessageResponse, Strategy
-from commit_dude.core.middleware import SecretPatternDetectorMiddleware, CommitLengthMiddleware, TokenCountMiddleware
+from commit_dude.core.local_model import LocalCommitModel
+from commit_dude.core.middleware import (
+    CommitLengthMiddleware,
+    SecretPatternDetectorMiddleware,
+    TokenCountMiddleware,
+)
 
 
 class CommitDudeAgent:
@@ -22,6 +27,9 @@ class CommitDudeAgent:
         self,
         logger: Optional[logging.Logger] = None,
         model_name: str = "gpt-5-mini",
+        model_provider: str = "openai",
+        local_model_id: str = "llama3.2",
+        local_base_url: Optional[str] = None,
         # model_name: str = "gpt-4o-mini",
         strict: bool = True,
     ) -> None:
@@ -30,10 +38,13 @@ class CommitDudeAgent:
         self._strict = strict
         self._strategy: Strategy = "block" if strict else "redact"
 
-        self._ensure_api_key()
-
         # Set Agent configuration
-        self._model = ChatOpenAI(model=model_name, temperature=0.5)
+        self._model = self._create_model(
+            model_provider=model_provider,
+            remote_model_name=model_name,
+            local_model_id=local_model_id,
+            local_base_url=local_base_url,
+        )
         self._middleware: Sequence[Any] = [
             TokenCountMiddleware(model=self._model),
             SecretPatternDetectorMiddleware(strategy=self._strategy),
@@ -92,6 +103,30 @@ class CommitDudeAgent:
 
         self._logger.debug("OPENAI_API_KEY loaded successfully")
         return api_key
+
+    def _create_model(
+        self,
+        *,
+        model_provider: str,
+        remote_model_name: str,
+        local_model_id: str,
+        local_base_url: Optional[str],
+    ):
+        if model_provider.lower() == "local":
+            self._logger.info(
+                "Using Ollama model: %s (base_url=%s)", local_model_id, local_base_url
+            )
+            return LocalCommitModel(
+                model=local_model_id,
+                base_url=local_base_url,
+                temperature=0.3,
+                max_new_tokens=self._max_tokens,
+                logger=self._logger,
+            )
+
+        self._ensure_api_key()
+        self._logger.info("Using OpenAI model: %s", remote_model_name)
+        return ChatOpenAI(model=remote_model_name, temperature=0.5)
 
 if __name__ == "__main__":
     agent = CommitDudeAgent(strict=False)
