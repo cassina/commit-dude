@@ -7,10 +7,12 @@ requires-python = ">=3.10"
 dependencies = [
     "langchain~=1.0.0",
     "langchain-openai~=1.0.0",
+    "langchain-community>=0.3.0",
     "click~=8.3.1",
     "pyperclip>=1.8.0",
     "python-dotenv>=1.0.0",
     "pydantic>=2.12.4",
+    "ollama>=0.4.1",
 ]
 
 [project.scripts]

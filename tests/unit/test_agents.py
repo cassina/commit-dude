@@ -36,3 +36,29 @@ def test_agent_init_raises_when_api_key_missing(monkeypatch):
 
     mock_load_dotenv.assert_called_once()
     mock_chat_openai.assert_not_called()
+
+
+def test_agent_uses_local_model_without_api_key(monkeypatch):
+    # Arrange
+    mock_load_dotenv = Mock()
+    mock_chat_openai = Mock()
+    mock_local_model = Mock()
+    monkeypatch.setattr(agents, "load_dotenv", mock_load_dotenv)
+    monkeypatch.setattr(agents, "ChatOpenAI", mock_chat_openai)
+    monkeypatch.setattr(agents, "LocalCommitModel", mock_local_model)
+
+    # Act
+    agents.CommitDudeAgent(
+        model_provider="local", local_model_id="local/test", local_base_url="http://ollama"
+    )
+
+    # Assert
+    mock_load_dotenv.assert_not_called()
+    mock_chat_openai.assert_not_called()
+    mock_local_model.assert_called_once()
+    kwargs = mock_local_model.call_args.kwargs
+    assert kwargs["model"] == "local/test"
+    assert kwargs["base_url"] == "http://ollama"
+    assert kwargs["temperature"] == 0.3
+    assert kwargs["max_new_tokens"] == agents.MAX_TOKENS
+    assert kwargs["logger"] is not None
