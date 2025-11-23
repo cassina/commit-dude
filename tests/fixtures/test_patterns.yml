@@ -1,0 +1,11 @@
+version: 0.0.1
+signature: test-generated-hash
+patterns:
+  - pattern:
+      name: Stripe
+      regex: "[rs]k_live_[a-zA-Z0-9]{20,30}"
+      confidence: high
+  - pattern:
+      name: Stripe API Key - 1
+      regex: sk_live_[0-9a-zA-Z]{24}
+      confidence: high
