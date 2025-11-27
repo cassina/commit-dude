@@ -97,6 +97,9 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
         return None
 
     def _detect(self, text):
+        if not text:
+            return []
+
         matches = []
         for pid, regex in self.compiled:
             for m in regex.finditer(text):
