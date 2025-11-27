@@ -553,3 +553,103 @@ def test_before_model_accepts_unused_runtime_argument():
     )
 
     assert result is None
+
+
+def test_redact_mode_never_leaks_original_secret():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+    middleware = SecretPatternDetectorMiddleware(
+        yaml_loader=loader, strategy="redact"
+    )
+    secret_value = "sk-test-123"
+    middleware._detect = MagicMock(return_value=[("PID-SECRET", secret_value)])
+
+    result = middleware.before_model(
+        {"messages": [HumanMessage(content=f"token {secret_value}")]},
+        runtime=MagicMock(),
+    )
+
+    redacted_messages = result["messages"]
+    assert all(secret_value not in msg.content for msg in redacted_messages)
+    assert any(REDACTION in msg.content for msg in redacted_messages)
+
+
+def test_block_mode_never_returns_sanitized_text():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+    message = MagicMock(spec=BaseMessage)
+    message.content = "api-key"
+    middleware = SecretPatternDetectorMiddleware(yaml_loader=loader, strategy="block")
+    middleware._detect = MagicMock(return_value=[("PID-KEY", "api-key")])
+
+    with pytest.raises(SecretPatternDetectorError):
+        middleware.before_model({"messages": [message]}, runtime=MagicMock())
+
+    message.model_copy.assert_not_called()
+    assert REDACTION not in message.content
+
+
+def test_block_mode_respects_compiled_pid_order():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = [
+        ("PID-FIRST", re.compile(r"secret")),
+        ("PID-SECOND", re.compile(r"secret")),
+    ]
+    middleware = SecretPatternDetectorMiddleware(yaml_loader=loader, strategy="block")
+
+    with pytest.raises(SecretPatternDetectorError) as excinfo:
+        middleware.before_model(
+            {"messages": [HumanMessage(content="secret present")]},
+            runtime=MagicMock(),
+        )
+
+    assert "PID-FIRST" in str(excinfo.value)
+    assert "PID-SECOND" not in str(excinfo.value)
+
+
+def test_init_propagates_yaml_loader_exceptions():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.side_effect = ValueError("bad yaml")
+
+    with pytest.raises(ValueError):
+        SecretPatternDetectorMiddleware(yaml_loader=loader)
+
+
+def test_detect_handles_regex_errors_gracefully(caplog):
+    failing_regex = MagicMock()
+    failing_regex.finditer.side_effect = RuntimeError("boom")
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = [("PID-FAIL", failing_regex)]
+    logger = logging.getLogger("regex-error")
+    logger.setLevel(logging.WARNING)
+    logger.propagate = True
+    middleware = SecretPatternDetectorMiddleware(yaml_loader=loader, logger=logger)
+
+    with caplog.at_level(logging.WARNING):
+        result = middleware._detect("problematic text")
+
+    assert result == []
+    assert "Regex evaluation failed for PID-FAIL" in caplog.text
+
+
+def test_before_model_unknown_strategy_returns_none_without_changes():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+    middleware = SecretPatternDetectorMiddleware(
+        yaml_loader=loader, strategy="observe"  # Unknown strategy
+    )
+    middleware._detect = MagicMock(return_value=[("PID-1", "secret")])
+    message = HumanMessage(content="secret")
+
+    result = middleware.before_model({"messages": [message]}, runtime=MagicMock())
+
+    assert result is None
+    assert message.content == "secret"
+
+
+def test_init_rejects_non_numeric_confidence_threshold():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+
+    with pytest.raises(TypeError):
+        SecretPatternDetectorMiddleware(yaml_loader=loader, confidence_threshold="high")

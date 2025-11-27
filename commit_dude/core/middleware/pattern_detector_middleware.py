@@ -25,6 +25,9 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
         confidence_threshold: float = 0.5,
         strategy: Strategy = "block",
     ):
+        if not isinstance(confidence_threshold, (int, float)):
+            raise TypeError("confidence_threshold must be a float")
+
         self._logger = logger or commit_dude_logger(__name__)
         self.yaml_loader = yaml_loader or YAMLLoader()
         self.strategy = strategy
@@ -102,6 +105,9 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
 
         matches = []
         for pid, regex in self.compiled:
-            for m in regex.finditer(text):
-                matches.append((pid, m.group(0)))
+            try:
+                for m in regex.finditer(text):
+                    matches.append((pid, m.group(0)))
+            except Exception as err:  # noqa: BLE001
+                self._logger.warning("Regex evaluation failed for %s: %s", pid, err)
         return matches
