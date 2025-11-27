@@ -24,6 +24,7 @@ class LocalCommitModel(BaseChatModel):
         base_url: str | None = None,
         temperature: float = 0.3,
         max_new_tokens: int = 512,
+        num_ctx: int | None = 8192,
         logger: logging.Logger | None = None,
     ) -> None:
         super().__init__()
@@ -34,13 +35,15 @@ class LocalCommitModel(BaseChatModel):
             base_url=base_url,
             temperature=temperature,
             num_predict=max_new_tokens,
+            num_ctx=num_ctx,
         )
 
         self._logger.info(
-            "Initialized Ollama model '%s' (base_url=%s, max_new_tokens=%d)",
+            "Initialized Ollama model '%s' (base_url=%s, max_new_tokens=%d, num_ctx=%s)",
             model,
             base_url,
             max_new_tokens,
+            num_ctx,
         )
 
     @property

@@ -36,12 +36,20 @@ from .controller import CommitDudeController
     default=None,
     help="Custom Ollama base URL (defaults to localhost)",
 )
+@click.option(
+    "--local-num-ctx",
+    type=int,
+    default=8192,
+    show_default=True,
+    help="Context window to request from the Ollama model",
+)
 def run_commit_dude(
     debug: bool,
     no_strict: bool = False,
     model_provider: str = "openai",
     local_model_id: str = "llama3.2",
     local_base_url: str | None = None,
+    local_num_ctx: int = 8192,
 ):
     """Entry point for Commit Dude CLI."""
     if debug:
@@ -53,6 +61,7 @@ def run_commit_dude(
         model_provider=model_provider,
         local_model_id=local_model_id,
         local_base_url=local_base_url,
+        local_num_ctx=local_num_ctx,
     )
     service = CommitDudeService(agent=agent)
     controller = CommitDudeController(service)
