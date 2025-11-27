@@ -160,6 +160,14 @@ commit-dude --model-provider local --local-model-id llama3.2
 
 Use `--local-base-url` to target a remote Ollama host (defaults to `http://localhost:11434`). The local pathway does **not** require `OPENAI_API_KEY`.
 
+If you hit context errors (e.g., "sequence length ... longer than ... 1024"), request a larger window from Ollama with `--local-num-ctx`:
+
+```bash
+commit-dude --model-provider local --local-num-ctx 32000
+```
+
+Be sure the chosen context size is supported by your downloaded model.
+
 ### **Summary**
 Use Commit Dude responsibly:
 
