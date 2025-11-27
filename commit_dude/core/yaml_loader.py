@@ -1,11 +1,9 @@
-from __future__ import annotations
-
+import re
+import yaml
 import logging
 from importlib import resources
 from importlib.abc import Traversable
 from typing import Optional
-
-import yaml
 
 from commit_dude.core.settings import commit_dude_logger
 
@@ -44,3 +42,26 @@ class YAMLLoader:
 
         self._logger.debug("Loaded %d patterns from %s", len(patterns), target_path)
         return patterns
+
+    def compile_patterns(self, entries, threshold):
+        compiled = []
+        confidence_map = {"low": 0.1, "medium": 0.5, "high": 0.9}
+
+        for e in entries:
+            p = e.get("pattern", {})
+            pid = p.get("name", "<unknown>")
+            regex = p.get("regex")
+            confidence = confidence_map.get(p.get("confidence", "low"), 0)
+
+            if not regex or confidence < threshold:
+                continue
+
+            try:
+                compiled.append((pid, re.compile(regex)))
+            except re.error as err:
+                self._logger.warning(f"Bad regex for {pid}: {err}")
+
+        return compiled
+
+    def load_and_compile(self, threshold):
+        return self.compile_patterns(self.load_patterns(), threshold)
