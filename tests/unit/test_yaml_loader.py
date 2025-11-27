@@ -1,13 +1,10 @@
 from pathlib import Path
 
-import pytest
-import yaml
 
-from commit_dude.core.yaml_loader import SIGNATURE_OVERRIDE_ENV, YAMLLoader
+from commit_dude.core.yaml_loader import YAMLLoader
 
 
-def test_load_patterns_returns_expected_entries(monkeypatch):
-    monkeypatch.setenv(SIGNATURE_OVERRIDE_ENV, "test-generated-hash")
+def test_load_patterns_returns_expected_entries():
     loader = YAMLLoader()
 
     patterns = loader.load_patterns(Path("tests/fixtures/test_patterns.yml"))
@@ -17,9 +14,23 @@ def test_load_patterns_returns_expected_entries(monkeypatch):
     assert patterns[1]["pattern"]["name"] == "Stripe API Key - 1"
 
 
-def test_load_patterns_raises_for_invalid_signature(monkeypatch):
-    monkeypatch.setenv(SIGNATURE_OVERRIDE_ENV, "unexpected-hash")
+def test_load_patterns_allows_missing_signature(tmp_path):
+    patterns_file = tmp_path / "patterns.yml"
+    patterns_file.write_text(
+        """
+        version: 0.0.2
+        patterns:
+          - pattern:
+              name: Example Pattern
+              regex: example
+              confidence: medium
+        """,
+        encoding="utf-8",
+    )
+
     loader = YAMLLoader()
 
-    with pytest.raises(yaml.YAMLError):
-        loader.load_patterns(Path("tests/fixtures/test_patterns.yml"))
+    patterns = loader.load_patterns(patterns_file)
+
+    assert len(patterns) == 1
+    assert patterns[0]["pattern"]["name"] == "Example Pattern"
