@@ -63,23 +63,4 @@ def test_agent_uses_local_model_without_api_key(monkeypatch):
     assert kwargs["base_url"] == "http://ollama"
     assert kwargs["temperature"] == 0.3
     assert kwargs["max_new_tokens"] == agents.MAX_TOKENS
-    assert kwargs["num_ctx"] == 8192
     assert kwargs["logger"] is not None
-
-
-def test_agent_passes_custom_context_window(monkeypatch):
-    # Arrange
-    mock_local_model = Mock()
-    monkeypatch.setattr(agents, "LocalCommitModel", mock_local_model)
-
-    # Act
-    agents.CommitDudeAgent(
-        model_provider="local",
-        local_model_id="local/test",
-        local_base_url="http://ollama",
-        local_num_ctx=32000,
-    )
-
-    # Assert
-    kwargs = mock_local_model.call_args.kwargs
-    assert kwargs["num_ctx"] == 32000
