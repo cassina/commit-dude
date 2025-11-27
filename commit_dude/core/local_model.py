@@ -1,7 +1,3 @@
-"""Local chat model for offline commit generation via Ollama."""
-
-from __future__ import annotations
-
 import logging
 from typing import Any
 
