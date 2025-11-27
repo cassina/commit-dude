@@ -200,6 +200,9 @@ pip install dist/commit_dude-0.1.2.tar.gz
 
 This helps catch missing package data that might not appear when testing only the wheel.
 
----
+## Upgrading dependencies
+Tu upgrade a dependency, run:
 
-
+```bash
+uv sync --upgrade-package [package-name]
+```
