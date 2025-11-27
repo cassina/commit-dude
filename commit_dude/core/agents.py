@@ -30,7 +30,6 @@ class CommitDudeAgent:
         model_provider: str = "openai",
         local_model_id: str = "llama3.2",
         local_base_url: Optional[str] = None,
-        local_num_ctx: int = 8192,
         # model_name: str = "gpt-4o-mini",
         strict: bool = True,
     ) -> None:
@@ -45,7 +44,6 @@ class CommitDudeAgent:
             remote_model_name=model_name,
             local_model_id=local_model_id,
             local_base_url=local_base_url,
-            local_num_ctx=local_num_ctx,
         )
         self._middleware: Sequence[Any] = [
             TokenCountMiddleware(model=self._model),
@@ -113,7 +111,6 @@ class CommitDudeAgent:
         remote_model_name: str,
         local_model_id: str,
         local_base_url: Optional[str],
-        local_num_ctx: int,
     ):
         if model_provider.lower() == "local":
             self._logger.info(
@@ -124,7 +121,6 @@ class CommitDudeAgent:
                 base_url=local_base_url,
                 temperature=0.3,
                 max_new_tokens=self._max_tokens,
-                num_ctx=local_num_ctx,
                 logger=self._logger,
             )
 
