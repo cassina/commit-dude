@@ -13,6 +13,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pydantic>=2.12.4",
     "ollama>=0.4.1",
+    "transformers>=4.57.3",
 ]
 
 [project.scripts]
