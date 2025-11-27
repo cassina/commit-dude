@@ -26,12 +26,11 @@ class SecretPatternDetectorMiddleware(AgentMiddleware):
         strategy: Strategy = "block",
     ):
         self._logger = logger or commit_dude_logger(__name__)
+        self.yaml_loader = yaml_loader or YAMLLoader()
         self.strategy = strategy
 
         self._logger.debug("Initializing secret pattern detector middleware...")
 
-        if not yaml_loader:
-            self.yaml_loader = YAMLLoader()
         self.compiled = self.yaml_loader.load_and_compile(confidence_threshold)
 
         self._logger.debug("Compiled patterns, confidence threshold: %s", confidence_threshold)
