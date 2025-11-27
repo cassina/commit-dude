@@ -3,7 +3,7 @@ import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
 from commit_dude.core.middleware.pattern_detector_middleware import (
     SecretPatternDetectorMiddleware,
@@ -393,3 +393,163 @@ def test_before_model_redact_mode_handles_missing_or_none_content():
     result = middleware.before_model(state, runtime=MagicMock())
 
     assert result["messages"][0].content is None
+
+
+def test_before_model_concatenates_multiple_message_contents():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+    middleware = SecretPatternDetectorMiddleware(
+        yaml_loader=loader, strategy="block"
+    )
+    spy = MagicMock(return_value=[])
+    middleware._detect = spy
+
+    messages = [
+        HumanMessage(content="first"),
+        HumanMessage(content="second"),
+    ]
+
+    middleware.before_model({"messages": messages}, runtime=MagicMock())
+
+    spy.assert_called_once_with("first second")
+
+
+def test_before_model_ignores_non_string_message_contents():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+    middleware = SecretPatternDetectorMiddleware(
+        yaml_loader=loader, strategy="block"
+    )
+    spy = MagicMock(return_value=[])
+    middleware._detect = spy
+
+    ai_message = AIMessage(content=[{"text": "structured"}])
+    messages = [HumanMessage(content="plain"), ai_message]
+
+    middleware.before_model({"messages": messages}, runtime=MagicMock())
+
+    spy.assert_called_once_with("plain")
+
+
+def test_before_model_redact_mode_uses_model_copy_for_base_message():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+    middleware = SecretPatternDetectorMiddleware(
+        yaml_loader=loader, strategy="redact"
+    )
+    middleware._detect = MagicMock(return_value=[("PID-1", "secret")])
+
+    message = MagicMock(spec=BaseMessage)
+    message.content = "secret data"
+    replacement = MagicMock()
+    message.model_copy.return_value = replacement
+
+    result = middleware.before_model({"messages": [message]}, runtime=MagicMock())
+
+    message.model_copy.assert_called_once_with(update={"content": REDACTION + " data"})
+    assert result["messages"][0] is replacement
+
+
+def test_before_model_logs_performance_start_and_end(caplog):
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+    logger = logging.getLogger("perf-logger")
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = True
+    middleware = SecretPatternDetectorMiddleware(
+        yaml_loader=loader, logger=logger, strategy="block"
+    )
+    middleware._detect = MagicMock(return_value=[])
+
+    with caplog.at_level(logging.DEBUG):
+        middleware.before_model(
+            {"messages": [HumanMessage(content="no secrets")]}, runtime=MagicMock()
+        )
+
+    assert "Checking for secret patterns" in caplog.text
+    assert "Finished secret pattern detection in" in caplog.text
+
+
+def test_before_model_redact_mode_logs_replaced_count(caplog):
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+    middleware = SecretPatternDetectorMiddleware(
+        yaml_loader=loader, strategy="redact"
+    )
+    middleware._detect = MagicMock(return_value=[("PID-1", "secret")])
+
+    with caplog.at_level(logging.WARNING):
+        middleware.before_model(
+            {"messages": [HumanMessage(content="secret info")]}, runtime=MagicMock()
+        )
+
+    assert "Replaced 1 patterns" in caplog.text
+
+
+def test_detect_returns_empty_when_compiled_patterns_empty():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+    middleware = SecretPatternDetectorMiddleware(yaml_loader=loader)
+
+    assert middleware._detect("some text") == []
+
+
+def test_before_model_handles_empty_message_list():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+    middleware = SecretPatternDetectorMiddleware(yaml_loader=loader, strategy="block")
+    middleware._detect = MagicMock(return_value=[])
+
+    result = middleware.before_model({"messages": []}, runtime=MagicMock())
+
+    assert result is None
+
+
+def test_before_model_handles_message_without_content_attribute():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+    middleware = SecretPatternDetectorMiddleware(yaml_loader=loader, strategy="block")
+    middleware._detect = MagicMock(return_value=[])
+
+    class MessageWithoutContent:
+        def __init__(self):
+            self.extra = "data"
+
+    result = middleware.before_model(
+        {"messages": [MessageWithoutContent()]}, runtime=MagicMock()
+    )
+
+    middleware._detect.assert_called_once_with("")
+    assert result is None
+
+
+def test_before_model_handles_mixed_message_types():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+    middleware = SecretPatternDetectorMiddleware(yaml_loader=loader, strategy="block")
+    spy = MagicMock(return_value=[])
+    middleware._detect = spy
+
+    messages = [
+        HumanMessage(content="human text"),
+        AIMessage(content=[{"text": "structured"}]),
+        SystemMessage(content="system directive"),
+    ]
+
+    middleware.before_model({"messages": messages}, runtime=MagicMock())
+
+    spy.assert_called_once_with("human text system directive")
+
+
+def test_before_model_accepts_unused_runtime_argument():
+    loader = MagicMock(spec=YAMLLoader)
+    loader.load_and_compile.return_value = []
+    middleware = SecretPatternDetectorMiddleware(yaml_loader=loader, strategy="block")
+    middleware._detect = MagicMock(return_value=[])
+    runtime = MagicMock()
+
+    result = middleware.before_model(
+        {"messages": [HumanMessage(content="irrelevant")]}, runtime=runtime
+    )
+
+    assert result is None
